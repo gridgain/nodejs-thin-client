@@ -1,5 +1,5 @@
 {
-  "name": "gridgain-client",
+  "name": "@gridgain/client",
   "version": "1.1.2",
   "description": "NodeJS Client for Gridgain Community Edition",
   "main": "index.js",
@@ -10,7 +10,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/gridgain/gridgain/tree/master/modules/platforms/nodejs"
+    "url": "https://github.com/gridgain/nodejs-thin-client/tree/master"
   },
   "keywords": [
     "gridgain",

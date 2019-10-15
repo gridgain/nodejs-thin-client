@@ -22,7 +22,7 @@ const JasmineReporters = require('jasmine-reporters');
 const Util = require('util');
 const exec = require('child_process').exec;
 const config = require('./config');
-const IgniteClient = require('gridgain-client');
+const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const Errors = IgniteClient.Errors;
 const EnumItem = IgniteClient.EnumItem;
@@ -166,7 +166,7 @@ const arrayValues = {
     [ObjectType.PRIMITIVE_TYPE.TIME_ARRAY] : { elemType : ObjectType.PRIMITIVE_TYPE.TIME }
 };
 
-// Helper class for testing gridgain-client library.
+// Helper class for testing @gridgain/thin-client library.
 // Contains common methods for testing environment initialization and cleanup.
 class TestingHelper {
     static get TIMEOUT() {

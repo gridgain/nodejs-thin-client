@@ -15,7 +15,7 @@
  */
 
 const Util = require('util');
-const IgniteClient = require('gridgain-client');
+const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 const ComplexObjectType = IgniteClient.ComplexObjectType;
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;

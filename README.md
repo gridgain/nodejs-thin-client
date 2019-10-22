@@ -1,4 +1,4 @@
-# NodeJS Client for GridGain #
+# Node.js Client for GridGain #
 
 ## Installation ##
 
@@ -32,7 +32,7 @@ npm link @gridgain/thin-client #linking examples (optional)
 
 # Tests #
 
-NodeJS Client for GridGain contains [Jasmine](https://www.npmjs.com/package/jasmine) tests to check the behavior of the client. the tests include:
+Node.js Client for GridGain contains [Jasmine](https://www.npmjs.com/package/jasmine) tests to check the behavior of the client. the tests include:
 - functional tests which cover all API methods of the client
 - examples executors which run all examples except AuthTlsExample
 - AuthTlsExample executor
@@ -61,7 +61,7 @@ Call `npm run test:examples` command from `nodejs-thin-client` folder.
 
 ### Run AuthTlsExample Executor ###
 
-It requires running GridGain server with non-default configuration (authentication and TLS switched on).
+Active GridGain server node with non-default configuration is required (authentication and TLS switched on).
 
 If the server runs locally:
 - setup the server to accept TLS. During the setup use `keystore.jks` and `truststore.jks` certificates from `nodejs-thin-client/examples/certs/` folder. Password for the files: `123456`
@@ -86,22 +86,22 @@ Call `npm run test:auth_example` command from `nodejs-thin-client` folder.
 
 3. If needed, modify `TLS_KEY_FILE_NAME`, `TLS_CERT_FILE_NAME` and `TLS_CA_FILE_NAME` constants in the example source file. The default values point to the files in the [examples/certs](./examples/certs) folder.
 
-4. Setup GridGain server to accept TLS - see appropriate GridGain documentation. Provide the obtained keystore.jks and truststore.jks certificates during the setup.
+4. Setup GridGain server to accept TLS - see appropriate [GridGain documentation](https://www.gridgain.com/docs/latest/developers-guide/thin-clients/getting-started-with-thin-clients#cluster-configuration). Provide the obtained keystore.jks and truststore.jks certificates during the setup.
 
-5. Switch on and setup authentication in GridGain server - see appropriate GridGain documentation.
+5. Switch on and setup authentication in GridGain server - see appropriate [GridGain documentation](https://www.gridgain.com/docs/latest/developers-guide/thin-clients/getting-started-with-thin-clients#cluster-configuration).
 
 6. If needed, modify `USER_NAME` and `PASSWORD` constants in the example source file. The default values are the default GridGain username/password.
 
 ## Additional Setup for FailoverExample ##
 
-1. Run three GridGain nodes. See appropriate GridGain documentation for more details.
+1. Start three GridGain server nodes.
 
 2. If needed, modify `ENDPOINT1`, `ENDPOINT2`, `ENDPOINT2` constants in an example source file - GridGain node endpoints.
 Default values are `localhost:10800`, `localhost:10801`, `localhost:10802` respectively.
 
 2. Run an example by calling `node FailoverExample.js`. 
 
-3. Shut down the node the client connected to (you can find it out from the client logs in the console).
+3. Shut down the node the client is connected to (you can find it out from the client logs in the console).
 
 4. From the logs, you will see that the client automatically reconnects to another node which is available.
 

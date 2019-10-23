@@ -118,4 +118,4 @@ It should be done if a public API class/method has been changed.
 
 Note: `nodejs-thin-client/api_spec/conf.json` is a file with jsdoc configuration.
 
-For more information, see [GridGain Node.JS Thin Client documentation](https://www.gridgain.com/docs/latest/developers-guide/thin-clients/nodejs-thin-client).
+For more information, see [GridGain Node.js Thin Client documentation](https://www.gridgain.com/docs/latest/developers-guide/thin-clients/nodejs-thin-client).

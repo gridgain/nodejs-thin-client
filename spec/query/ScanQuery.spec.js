@@ -20,7 +20,7 @@ require('jasmine-expect');
 
 const config = require('../config');
 const TestingHelper = require('../TestingHelper');
-const IgniteClient = require('@gridgain/thin-client');
+const IgniteClient = require('apache-ignite-client');
 const Errors = IgniteClient.Errors;
 const ScanQuery = IgniteClient.ScanQuery;
 const ObjectType = IgniteClient.ObjectType;
@@ -154,7 +154,8 @@ describe('scan query test suite >', () => {
                 let cache = igniteClient.getCache(CACHE_NAME);
                 const cursor = await cache.query(new ScanQuery().
                     setPartitionNumber(0).
-                    setPageSize(2));
+                    setPageSize(2).
+                    setLocal(true));
                 await cursor.getAll();
                 await cursor.close();
             }).

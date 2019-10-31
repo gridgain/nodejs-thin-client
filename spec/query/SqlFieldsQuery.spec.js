@@ -20,7 +20,7 @@ require('jasmine-expect');
 
 const config = require('../config');
 const TestingHelper = require('../TestingHelper');
-const IgniteClient = require('@gridgain/thin-client');
+const IgniteClient = require('apache-ignite-client');
 const Errors = IgniteClient.Errors;
 const SqlFieldsQuery = IgniteClient.SqlFieldsQuery;
 const ObjectType = IgniteClient.ObjectType;
@@ -76,31 +76,12 @@ describe('sql fields query test suite >', () => {
             catch(error => done.fail(error));
     });
 
-    it('get all with page size lazy true', (done) => {
+    it('get all with page size', (done) => {
         Promise.resolve().
             then(async () => {
                 let cache = igniteClient.getCache(CACHE_NAME);
                 const cursor = await cache.query(
-                    new SqlFieldsQuery(`SELECT * FROM ${TABLE_NAME}`).setPageSize(1).setLazy(true));
-                const set = new Set();
-                for (let fields of await cursor.getAll()) {
-                    expect(fields.length).toBe(2);
-                    expect(generateValue(fields[0]) === fields[1]).toBe(true);
-                    set.add(fields[0]);
-                    expect(fields[0] >= 0 && fields[0] < ELEMENTS_NUMBER).toBe(true);
-                }
-                expect(set.size).toBe(ELEMENTS_NUMBER);
-            }).
-            then(done).
-            catch(error => done.fail(error));
-    });
-
-    it('get all with page size lazy false', (done) => {
-        Promise.resolve().
-            then(async () => {
-                let cache = igniteClient.getCache(CACHE_NAME);
-                const cursor = await cache.query(
-                    new SqlFieldsQuery(`SELECT * FROM ${TABLE_NAME}`).setPageSize(1).setLazy(false));
+                    new SqlFieldsQuery(`SELECT * FROM ${TABLE_NAME}`).setPageSize(1));
                 const set = new Set();
                 for (let fields of await cursor.getAll()) {
                     expect(fields.length).toBe(2);
@@ -185,6 +166,7 @@ describe('sql fields query test suite >', () => {
                 let cache = igniteClient.getCache(CACHE_NAME);
                 const cursor = await cache.query(new SqlFieldsQuery(`SELECT * FROM ${TABLE_NAME}`).
                     setPageSize(2).
+                    setLocal(false).
                     setSql(`INSERT INTO ${TABLE_NAME} (field1, field2) VALUES (?, ?)`).
                     setArgTypes(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.STRING).
                     setArgs(50, 'test').

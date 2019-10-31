@@ -22,7 +22,7 @@ const JasmineReporters = require('jasmine-reporters');
 const Util = require('util');
 const exec = require('child_process').exec;
 const config = require('./config');
-const IgniteClient = require('@gridgain/thin-client');
+const IgniteClient = require('apache-ignite-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const Errors = IgniteClient.Errors;
 const EnumItem = IgniteClient.EnumItem;
@@ -61,7 +61,7 @@ const decimalValueModificator = (data) => { return data.add(12345); };
 const timestampValueModificator = (data) => { return new Timestamp(new Date(data.getTime() + 12345), data.getNanos() + 123); };
 
 const primitiveValues = {
-    [ObjectType.PRIMITIVE_TYPE.BYTE] : {
+    [ObjectType.PRIMITIVE_TYPE.BYTE] : { 
         values : [-128, 0, 127],
         isMapKey : true,
         modificator : numericValueModificator
@@ -166,7 +166,7 @@ const arrayValues = {
     [ObjectType.PRIMITIVE_TYPE.TIME_ARRAY] : { elemType : ObjectType.PRIMITIVE_TYPE.TIME }
 };
 
-// Helper class for testing @gridgain/thin-client library.
+// Helper class for testing apache-ignite-client library.
 // Contains common methods for testing environment initialization and cleanup.
 class TestingHelper {
     static get TIMEOUT() {
@@ -183,13 +183,12 @@ class TestingHelper {
 
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness) {
+    static async init() {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
 
         TestingHelper._igniteClient = new IgniteClient();
         TestingHelper._igniteClient.setDebug(config.debug);
-        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...config.endpoints).
-            setConnectionOptions(false, null, affinityAwareness));
+        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...config.endpoints));
     }
 
     // Cleans up testing environment.
@@ -385,7 +384,7 @@ class TestingHelper {
             }
             return true;
         }
-    }
+    }    
 }
 
 module.exports = TestingHelper;

@@ -1,24 +1,10 @@
 {
-  "name": "@gridgain/thin-client",
-  "version": "1.3.0",
-  "description": "NodeJS Client for Gridgain Community Edition",
+  "name": "apache-ignite-client",
+  "version": "1.0.0",
+  "description": "",
   "main": "index.js",
-  "files": [
-    "/examples",
-    "/lib",
-    "index.js"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/gridgain/nodejs-thin-client/tree/master"
-  },
-  "keywords": [
-    "gridgain",
-    "community",
-    "client"
-  ],
   "author": "",
-  "license": "GridGain Community",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -29,8 +15,7 @@
   "scripts": {
     "test": "jasmine",
     "test:examples": "node ./spec/ExamplesExecutor.js Examples",
-    "test:auth_example": "node ./spec/ExamplesExecutor.js AuthExample",
-    "test:affinity_awareness": "APACHE_IGNITE_CLIENT_AFFINITY_AWARENESS=true node ./spec/AffinityAwarenessExecutor.js"
+    "test:auth_example": "node ./spec/ExamplesExecutor.js AuthExample"
   },
   "devDependencies": {
     "jasmine": "latest",

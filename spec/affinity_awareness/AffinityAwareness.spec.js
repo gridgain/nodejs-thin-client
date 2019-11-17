@@ -40,7 +40,7 @@ describe('affinity awareness feature test suite >', () => {
             then(async () => {
                 checkEndpointsList(done);
                 // Pass "true" to turn on Affinity Awareness even
-                // if APACHE_IGNITE_CLIENT_AFFINITY_AWARENESS env var is not passed
+                // if GRIDGAIN_CLIENT_AFFINITY_AWARENESS env var is not passed
                 await TestingHelper.init(true);
                 igniteClient = TestingHelper.igniteClient;
                 await checkAffinityAwarenessActive(done);

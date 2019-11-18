@@ -35,6 +35,7 @@
   "devDependencies": {
     "jasmine": "latest",
     "jasmine-expect": "latest",
-    "jasmine-reporters": "latest"
+    "jasmine-reporters": "latest",
+    "ps-tree": "latest"
   }
 }

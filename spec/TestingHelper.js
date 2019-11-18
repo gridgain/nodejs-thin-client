@@ -19,11 +19,11 @@
 require('jasmine-expect');
 const JasmineReporters = require('jasmine-reporters');
 
+const psTree = require('ps-tree');
 const Util = require('util');
 const path = require('path');
 const fs = require("fs");
-const exec = require('child_process').exec;
-const spawn = require('child_process').spawn;
+const child_process = require('child_process');
 const config = require('./config');
 const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
@@ -186,8 +186,10 @@ class TestingHelper {
 
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness) {
+    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1) {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
+
+        await TestingHelper.startTestServers(serversNum);
 
         TestingHelper._igniteClient = new IgniteClient();
         TestingHelper._igniteClient.setDebug(config.debug);
@@ -199,6 +201,8 @@ class TestingHelper {
     // Should be called from any test suite afterAll method.
     static async cleanUp() {
         await TestingHelper.igniteClient.disconnect();
+
+        TestingHelper.stopTestServers();
     }
 
     static get igniteClient() {
@@ -273,6 +277,44 @@ class TestingHelper {
             });
     }
 
+    static async startTestServers(serversNum) {
+        logDebug('Starting ' + serversNum + ' node[s]');
+        if (serversNum < 0)
+            throw 'Wrong number of servers to start: ' + serversNum;
+
+        if (!TestingHelper._servers)
+            TestingHelper._servers = [];
+
+        for (let i = 1; i < serversNum + 1; ++i)
+            TestingHelper._servers.push(await TestingHelper.startNode(i));
+    }
+
+    static stopTestServers() {
+        if (TestingHelper._servers) {
+            for (let server of TestingHelper._servers) {
+                this.killNode(server);
+            }
+
+            delete TestingHelper._servers;
+        }
+    }
+
+    static killNode(proc) {
+        if (TestingHelper.isWindows()) {
+            child_process.spawnSync('taskkill', ['/F', '/T', '/PID', proc.pid.toString()])
+        }
+        psTree(proc.pid, function (err, children) {
+            children.map((p) => {
+                try {
+                    process.kill(p.PID, 'SIGKILL');
+                }
+                catch {
+                    // No-op.
+                }
+            });
+          });
+    }
+
     static async startNode(idx = 1, debug = false) {
         //clearLogs(idx);
         const runner = TestingHelper.getNodeRunner();
@@ -280,7 +322,7 @@ class TestingHelper {
         TestingHelper.logDebug('Trying to start node using following command: ' + runner);
     
         let nodeEnv = {};
-        for (let ev in process.env)
+        for (const ev in process.env)
             nodeEnv[ev] = process.env[ev];
 
         if (debug) {
@@ -289,10 +331,10 @@ class TestingHelper {
         }
 
         const nodeCfg = TestingHelper.getConfigPath(idx);
-        const srv = spawn(runner, [nodeCfg], {env: nodeEnv});
+        const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
 
         const started = await TestingHelper.waitForCondition(async () => 
-            TestingHelper.tryConnectClient(idx), 60000);
+            TestingHelper.tryConnectClient(idx), 10000);
 
         if (!started) {
             srv.kill('SIGKILL');
@@ -304,7 +346,7 @@ class TestingHelper {
 
     static executeExample(name, outputChecker) {
         return new Promise((resolve, reject) => {
-                exec('node ' + name, (error, stdout, stderr) => {
+                child_process.exec('node ' + name, (error, stdout, stderr) => {
                     TestingHelper.logDebug(stdout);
                     resolve(stdout);
                 })

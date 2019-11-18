@@ -38,10 +38,9 @@ describe('affinity awareness feature test suite >', () => {
     beforeAll((done) => {
         Promise.resolve().
             then(async () => {
-                checkEndpointsList(done);
                 // Pass "true" to turn on Affinity Awareness even
                 // if GRIDGAIN_CLIENT_AFFINITY_AWARENESS env var is not passed
-                await TestingHelper.init(true);
+                await TestingHelper.init(true, 3);
                 igniteClient = TestingHelper.igniteClient;
                 await checkAffinityAwarenessActive(done);
                 await testSuiteCleanup(done);
@@ -211,15 +210,6 @@ describe('affinity awareness feature test suite >', () => {
             setWriteSynchronizationMode(CacheConfiguration.WRITE_SYNCHRONIZATION_MODE.FULL_SYNC).
             setCacheMode(CacheConfiguration.CACHE_MODE.PARTITIONED).
             setKeyConfigurations(keyCfg);
-    }
-
-    function checkEndpointsList(done) {
-        if (config.endpoints.length < 2) {
-            // We should stop here and not continue running this test suite
-            // but Jasmine doesn't support such behavior for some reason
-            done.fail('Affinity Awareness feature requires at least two nodes in cluster');
-            return;
-        }
     }
 
     async function checkAffinityAwarenessActive(done) {

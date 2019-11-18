@@ -186,14 +186,17 @@ class TestingHelper {
 
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1) {
+    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, endpoints) {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
+
+        if (!endpoints)
+            endpoints = TestingHelper.getEndpoints(serversNum);
 
         await TestingHelper.startTestServers(serversNum);
 
         TestingHelper._igniteClient = new IgniteClient();
         TestingHelper._igniteClient.setDebug(config.debug);
-        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...config.endpoints).
+        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...endpoints).
             setConnectionOptions(false, null, affinityAwareness));
     }
 
@@ -216,6 +219,17 @@ class TestingHelper {
         catch (err) {
             TestingHelper.checkOperationError(err, done);
         }
+    }
+
+    static getEndpoints(serversNum) {
+        if (serversNum < 1)
+            throw 'Wrong number of nodes: ' + serversNum;
+
+        let res = [];
+        for (let i = 1; i < serversNum + 1; ++i)
+            res.push('127.0.0.1:' + (10800 + i));
+
+        return res;
     }
 
     static isWindows() {
@@ -278,7 +292,7 @@ class TestingHelper {
     }
 
     static async startTestServers(serversNum) {
-        logDebug('Starting ' + serversNum + ' node[s]');
+        TestingHelper.logDebug('Starting ' + serversNum + ' node[s]');
         if (serversNum < 0)
             throw 'Wrong number of servers to start: ' + serversNum;
 

@@ -20,7 +20,10 @@ require('jasmine-expect');
 const JasmineReporters = require('jasmine-reporters');
 
 const Util = require('util');
+const path = require('path');
+const fs = require("fs");
 const exec = require('child_process').exec;
+const spawn = require('child_process').spawn;
 const config = require('./config');
 const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
@@ -209,6 +212,89 @@ class TestingHelper {
         catch (err) {
             TestingHelper.checkOperationError(err, done);
         }
+    }
+
+    static get isWindows() {
+        return process.platform === 'win32';
+    }
+
+    static get getNodeRunner() {
+        if (!config.igniteHome)
+            throw 'Can not start node: IGNITE_HOME is not set';
+
+        const ext = isWindows() ? '.bat' : '.sh';
+        const runner = path.join(config.igniteHome, 'bin', 'ignite' + ext);
+        if (!fs.existsSync(runner))
+            throw 'Can not find ' + runner + '. Please, check your IGNITE_HOME environment variable';
+        
+        return runner;
+    }
+
+    static getConfigPath(idx = 1) {
+        return path.join(__dirname, "configs", Util.format("ignite-config-%d.xml", idx));
+    }
+    
+    static async sleep(milliseconds) {
+        return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    static async waitForCondition(cond, timeout) {
+        const startTime = Date.now();
+
+        while (!await cond()) {
+            if (Date.now() - startTime > timeout) {
+                return false;
+            }
+
+            await sleep(100);
+        }
+
+        return true;
+    }
+
+    static async tryConnectClient(idx = 1, debug = false) {
+        const endPoint = Util.format('localhost:%d', 10800 + idx);
+
+        let cli = new IgniteClient();
+        cli.setDebug(debug);
+
+        await cli.connect(new IgniteClientConfiguration(endPoint).
+            setConnectionOptions(false, null, affinityAwareness)).
+            then(() => {
+                cli.disconnect();
+                return true;
+            }).
+            catch(_error => {
+                return false;
+            });
+    }
+
+    static async startNode(idx = 1, debug = false) {
+        clearLogs(idx);
+        const runner = getNodeRunner();
+
+        TestingHelper.logDebug('Trying to start node using following command: ' + runner);
+    
+        let nodeEnv = {};
+        for (e in process.env)
+            nodeEnv[e] = process.env[e];
+
+        if (debug) {
+            nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
+                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 '
+        }
+
+        const nodeCfg = getConfigPath(idx);
+        const srv = spawn(runner + ' ' + nodeCfg, {env: nodeEnv});
+
+        const started = await waitForCondition(async () => tryConnectClient(idx), timeout=10000);
+
+        if (!started) {
+            srv.kill('SIGKILL');
+            throw 'Failed to start Node: timeout while trying to connect';
+        }
+
+        return srv
     }
 
     static executeExample(name, outputChecker) {

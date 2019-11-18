@@ -214,15 +214,15 @@ class TestingHelper {
         }
     }
 
-    static get isWindows() {
+    static isWindows() {
         return process.platform === 'win32';
     }
 
-    static get getNodeRunner() {
+    static getNodeRunner() {
         if (!config.igniteHome)
             throw 'Can not start node: IGNITE_HOME is not set';
 
-        const ext = isWindows() ? '.bat' : '.sh';
+        const ext = TestingHelper.isWindows() ? '.bat' : '.sh';
         const runner = path.join(config.igniteHome, 'bin', 'ignite' + ext);
         if (!fs.existsSync(runner))
             throw 'Can not find ' + runner + '. Please, check your IGNITE_HOME environment variable';
@@ -246,48 +246,53 @@ class TestingHelper {
                 return false;
             }
 
-            await sleep(100);
+            await TestingHelper.sleep(100);
         }
 
         return true;
     }
 
     static async tryConnectClient(idx = 1, debug = false) {
-        const endPoint = Util.format('localhost:%d', 10800 + idx);
+        const endPoint = Util.format('127.0.0.1:%d', 10800 + idx);
+
+        TestingHelper.logDebug("Checking endpoint: " + endPoint);
 
         let cli = new IgniteClient();
         cli.setDebug(debug);
 
-        await cli.connect(new IgniteClientConfiguration(endPoint).
-            setConnectionOptions(false, null, affinityAwareness)).
+        return await cli.connect(new IgniteClientConfiguration(endPoint).
+            setConnectionOptions(false, null, false)).
             then(() => {
+                TestingHelper.logDebug("Successfully connected");
                 cli.disconnect();
                 return true;
             }).
-            catch(_error => {
+            catch(error => {
+                TestingHelper.logDebug("Error while connecting: " + error.toString());
                 return false;
             });
     }
 
     static async startNode(idx = 1, debug = false) {
-        clearLogs(idx);
-        const runner = getNodeRunner();
+        //clearLogs(idx);
+        const runner = TestingHelper.getNodeRunner();
 
         TestingHelper.logDebug('Trying to start node using following command: ' + runner);
     
         let nodeEnv = {};
-        for (e in process.env)
-            nodeEnv[e] = process.env[e];
+        for (let ev in process.env)
+            nodeEnv[ev] = process.env[ev];
 
         if (debug) {
             nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
                                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 '
         }
 
-        const nodeCfg = getConfigPath(idx);
-        const srv = spawn(runner + ' ' + nodeCfg, {env: nodeEnv});
+        const nodeCfg = TestingHelper.getConfigPath(idx);
+        const srv = spawn(runner, [nodeCfg], {env: nodeEnv});
 
-        const started = await waitForCondition(async () => tryConnectClient(idx), timeout=10000);
+        const started = await TestingHelper.waitForCondition(async () => 
+            TestingHelper.tryConnectClient(idx), 60000);
 
         if (!started) {
             srv.kill('SIGKILL');

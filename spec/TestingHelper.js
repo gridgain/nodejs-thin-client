@@ -203,9 +203,12 @@ class TestingHelper {
     // Cleans up testing environment.
     // Should be called from any test suite afterAll method.
     static async cleanUp() {
-        await TestingHelper.igniteClient.disconnect();
-
-        TestingHelper.stopTestServers();
+        try {
+            await TestingHelper.igniteClient.disconnect();
+        }
+        finally {
+            TestingHelper.stopTestServers();
+        }
     }
 
     static get igniteClient() {
@@ -329,8 +332,23 @@ class TestingHelper {
           });
     }
 
+    static getLogFiles(idx) {
+        const glob = require("glob");
+        // glob package only works with slashes so no need in 'path' here.
+        const logsPattern = Util.format('./logs/ignite-log-%d*.txt', idx);
+        const res = glob.sync(logsPattern);
+        return res;
+    }
+
+    static clearLogs(idx) {
+        const fs = require('fs');
+        for (const f of TestingHelper.getLogFiles(idx))
+            fs.unlinkSync(f);
+    }
+
     static async startNode(idx = 1, debug = false) {
-        //clearLogs(idx);
+        TestingHelper.clearLogs(idx);
+
         const runner = TestingHelper.getNodeRunner();
 
         TestingHelper.logDebug('Trying to start node using following command: ' + runner);
@@ -341,11 +359,20 @@ class TestingHelper {
 
         if (debug) {
             nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
-                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 '
+                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 ';
         }
 
         const nodeCfg = TestingHelper.getConfigPath(idx);
         const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
+
+        if (config.debug) {
+            srv.stdout.on('data', (data) => {
+                console.log(data.toString());
+            });
+            srv.stderr.on('data', (data) => {
+                console.error(data.toString());
+            });    
+        }
 
         const started = await TestingHelper.waitForCondition(async () => 
             TestingHelper.tryConnectClient(idx), 10000);

@@ -35,10 +35,10 @@
             </bean>
         </property>
 
-        <!-- <property name="gridLogger">
+        <property name="gridLogger">
             <bean class="org.apache.ignite.logger.log4j.Log4JLogger">
-              <constructor-arg type="java.lang.String" value="config/log4j-4.xml"/>
+              <constructor-arg type="java.lang.String" value="spec/configs/log4j-4.xml"/>
             </bean>
-        </property> -->
+        </property>
     </bean>
 </beans>

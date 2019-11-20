@@ -192,7 +192,7 @@ class TestingHelper {
         if (!endpoints)
             endpoints = TestingHelper.getEndpoints(serversNum);
 
-        await TestingHelper.startTestServers(serversNum);
+        await TestingHelper.startTestServers(affinityAwareness, serversNum);
 
         TestingHelper._igniteClient = new IgniteClient();
         TestingHelper._igniteClient.setDebug(config.debug);
@@ -251,7 +251,10 @@ class TestingHelper {
         return runner;
     }
 
-    static getConfigPath(idx = 1) {
+    static getConfigPath(affinityAwareness, idx = 1) {
+        if (!affinityAwareness)
+            return path.join(__dirname, "configs", "ignite-config-default.xml");
+
         return path.join(__dirname, "configs", Util.format("ignite-config-%d.xml", idx));
     }
     
@@ -294,7 +297,7 @@ class TestingHelper {
             });
     }
 
-    static async startTestServers(serversNum) {
+    static async startTestServers(affinityAwareness, serversNum) {
         TestingHelper.logDebug('Starting ' + serversNum + ' node[s]');
         if (serversNum < 0)
             throw 'Wrong number of servers to start: ' + serversNum;
@@ -303,7 +306,7 @@ class TestingHelper {
             TestingHelper._servers = [];
 
         for (let i = 1; i < serversNum + 1; ++i)
-            TestingHelper._servers.push(await TestingHelper.startNode(i));
+            TestingHelper._servers.push(await TestingHelper.startNode(affinityAwareness, i));
     }
 
     static stopTestServers() {
@@ -346,7 +349,7 @@ class TestingHelper {
             fs.unlinkSync(f);
     }
 
-    static async startNode(idx = 1, debug = false) {
+    static async startNode(affinityAwareness, idx = 1) {
         TestingHelper.clearLogs(idx);
 
         const runner = TestingHelper.getNodeRunner();
@@ -357,12 +360,12 @@ class TestingHelper {
         for (const ev in process.env)
             nodeEnv[ev] = process.env[ev];
 
-        if (debug) {
+        if (config.debug) {
             nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
                                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 ';
         }
 
-        const nodeCfg = TestingHelper.getConfigPath(idx);
+        const nodeCfg = TestingHelper.getConfigPath(affinityAwareness, idx);
         const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
 
         if (config.debug) {

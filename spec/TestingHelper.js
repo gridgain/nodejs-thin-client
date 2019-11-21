@@ -340,7 +340,7 @@ class TestingHelper {
                 try {
                     process.kill(p.PID, 'SIGKILL');
                 }
-                catch {
+                catch (_error) {
                     // No-op.
                 }
             });

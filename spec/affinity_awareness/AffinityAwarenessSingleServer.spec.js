@@ -42,7 +42,6 @@ describe('affinity awareness with single server checks by logs test suite >', ()
                 let endpoints = TestingHelper.getEndpoints(serverNum);
                 await TestingHelper.init(true, serverNum, true, [endpoints[0]]);
                 igniteClient = TestingHelper.igniteClient;
-                await checkAffinityAwarenessActive(done);
                 await testSuiteCleanup(done);
             }).
             then(done).
@@ -89,14 +88,6 @@ describe('affinity awareness with single server checks by logs test suite >', ()
             setWriteSynchronizationMode(CacheConfiguration.WRITE_SYNCHRONIZATION_MODE.FULL_SYNC).
             setCacheMode(CacheConfiguration.CACHE_MODE.PARTITIONED).
             setKeyConfigurations(keyCfg);
-    }
-
-    async function checkAffinityAwarenessActive(done) {
-        await TestingHelper.waitForConditionOrThrow(() => {
-            return igniteClient._router._affinityAwarenessActive;
-        }, 2000).
-        then(done).
-        catch(_e => done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it"));
     }
 
     async function testSuiteCleanup(done) {

@@ -16,13 +16,10 @@
 
 'use strict';
 
-exports.endpoints = process.env.GRIDGAIN_CLIENT_ENDPOINTS ?
-                    process.env.GRIDGAIN_CLIENT_ENDPOINTS.split(',') : [];
 exports.debug = process.env.GRIDGAIN_CLIENT_DEBUG === 'true' ||
                 process.env.GRIDGAIN_CLIENT_DEBUG === '1';
 exports.affinityAwareness = process.env.GRIDGAIN_CLIENT_AFFINITY_AWARENESS === 'true' ||
                             process.env.GRIDGAIN_CLIENT_AFFINITY_AWARENESS === '1';
 exports.igniteHome = process.env.IGNITE_HOME;
 
-//exports.endpoints = ['127.0.0.1:10800'];
 //exports.debug = false;

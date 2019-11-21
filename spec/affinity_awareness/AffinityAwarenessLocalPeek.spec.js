@@ -31,7 +31,7 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness feature test suite >', () => {
+describe('affinity awareness with local peek test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
 
@@ -177,18 +177,14 @@ describe('affinity awareness feature test suite >', () => {
     }
 
     async function checkLocalPeek(cache, key, value) {
-        const startTime = Date.now();
-
         // Waiting for distribution map to be obtained.
         // It has been requested during the "put" operation before calling this function
-        while (!igniteClient._router._distributionMap.has(cache._cacheId)) {
-            if (Date.now() - startTime > 1000) {
-                throw 'getting of partition map timed out';
-                return;
-            }
+        let waitOk = await TestingHelper.waitForCondition(() => {
+            return igniteClient._router._distributionMap.has(cache._cacheId);
+        }, 1000);
 
-            await sleep(10);
-        }
+        if (!waitOk)
+            throw "getting of partition map timed out";
 
         const affHint = cache._createAffinityHint(key);
         const bestSocket = await igniteClient._router._chooseConnection(affHint);
@@ -213,21 +209,11 @@ describe('affinity awareness feature test suite >', () => {
     }
 
     async function checkAffinityAwarenessActive(done) {
-        const startTime = Date.now();
-        while (!igniteClient._router._affinityAwarenessActive) {
-            if (Date.now() - startTime > 2000) {
-                // We should stop here and not continue running this test suite
-                // but Jasmine doesn't support such behavior for some reason
-                done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it");
-                return;
-            }
-
-            await sleep(100);
-        }
-    }
-
-    async function sleep(milliseconds) {
-        return new Promise(resolve => setTimeout(resolve, milliseconds));
+        await TestingHelper.waitForConditionOrThrow(() => {
+            return igniteClient._router._affinityAwarenessActive;
+        }, 2000).
+        then(done).
+        catch(_e => done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it"));
     }
 
     async function testSuiteCleanup(done) {

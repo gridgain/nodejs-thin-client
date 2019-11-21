@@ -276,6 +276,18 @@ class TestingHelper {
         return true;
     }
 
+    static async waitForConditionOrThrow(cond, timeout) {
+        const startTime = Date.now();
+
+        while (!await cond()) {
+            if (Date.now() - startTime > timeout) {
+                throw 'Failed to achive condition within timeout ' + timeout;
+            }
+
+            await TestingHelper.sleep(100);
+        }
+    }
+
     static async tryConnectClient(idx = 1, debug = false) {
         const endPoint = Util.format('127.0.0.1:%d', 10800 + idx);
 

@@ -186,13 +186,13 @@ class TestingHelper {
 
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, endpoints) {
+    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, needLogging = false, endpoints) {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
 
         if (!endpoints)
             endpoints = TestingHelper.getEndpoints(serversNum);
 
-        await TestingHelper.startTestServers(affinityAwareness, serversNum);
+        await TestingHelper.startTestServers(needLogging, serversNum);
 
         TestingHelper._igniteClient = new IgniteClient();
         TestingHelper._igniteClient.setDebug(config.debug);
@@ -251,8 +251,8 @@ class TestingHelper {
         return runner;
     }
 
-    static getConfigPath(affinityAwareness, idx = 1) {
-        if (!affinityAwareness)
+    static getConfigPath(needLogging, idx = 1) {
+        if (!needLogging)
             return path.join(__dirname, "configs", "ignite-config-default.xml");
 
         return path.join(__dirname, "configs", Util.format("ignite-config-%d.xml", idx));
@@ -297,7 +297,7 @@ class TestingHelper {
             });
     }
 
-    static async startTestServers(affinityAwareness, serversNum) {
+    static async startTestServers(needLogging, serversNum) {
         TestingHelper.logDebug('Starting ' + serversNum + ' node[s]');
         if (serversNum < 0)
             throw 'Wrong number of servers to start: ' + serversNum;
@@ -306,7 +306,7 @@ class TestingHelper {
             TestingHelper._servers = [];
 
         for (let i = 1; i < serversNum + 1; ++i)
-            TestingHelper._servers.push(await TestingHelper.startNode(affinityAwareness, i));
+            TestingHelper._servers.push(await TestingHelper.startNode(needLogging, i));
     }
 
     static stopTestServers() {
@@ -349,7 +349,7 @@ class TestingHelper {
             fs.unlinkSync(f);
     }
 
-    static async startNode(affinityAwareness, idx = 1) {
+    static async startNode(needLogging, idx = 1) {
         TestingHelper.clearLogs(idx);
 
         const runner = TestingHelper.getNodeRunner();
@@ -365,7 +365,7 @@ class TestingHelper {
                                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 ';
         }
 
-        const nodeCfg = TestingHelper.getConfigPath(affinityAwareness, idx);
+        const nodeCfg = TestingHelper.getConfigPath(needLogging, idx);
         const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
 
         if (config.debug) {

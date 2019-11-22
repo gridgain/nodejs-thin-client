@@ -177,14 +177,7 @@ describe('affinity awareness with local peek test suite >', () => {
     }
 
     async function checkLocalPeek(cache, key, value) {
-        // Waiting for distribution map to be obtained.
-        // It has been requested during the "put" operation before calling this function
-        let waitOk = await TestingHelper.waitForCondition(() => {
-            return igniteClient._router._distributionMap.has(cache._cacheId);
-        }, 1000);
-
-        if (!waitOk)
-            throw "getting of partition map timed out";
+        await TestingHelper.waitMapObtained(igniteClient, cache);
 
         const affHint = cache._createAffinityHint(key);
         const bestSocket = await igniteClient._router._chooseConnection(affHint);

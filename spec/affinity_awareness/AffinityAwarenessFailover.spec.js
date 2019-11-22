@@ -90,8 +90,11 @@ describe('affinity awareness failover test suite >', () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
                 let key = 1;
 
-                // Put/Get
+                // Put to inialize partition mapping
                 await cache.put(key, key);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+
+                // Get to find out the right node
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing node for the key

@@ -370,6 +370,54 @@ class TestingHelper {
           });
     }
 
+    // Waiting for distribution map to be obtained.
+    // It has been requested during the "put" operation before calling this function
+    async static waitMapObtained(igniteClient, cache) {
+        let waitOk = await TestingHelper.waitForCondition(() => {
+            return igniteClient._router._distributionMap.has(cache._cacheId);
+        }, 1000);
+
+        if (!waitOk)
+            throw "getting of partition map timed out";
+    }
+
+    static readLogFile(file, idx) {
+        i = -1;
+        with open(file) as f:
+            lines = f.readlines()
+            for line in lines:
+                i += 1
+
+                if i < read_log_file.last_line[idx]:
+                    continue
+
+                if i > read_log_file.last_line[idx]:
+                    read_log_file.last_line[idx] = i
+
+                # Example: Client request received [reqId=1, addr=/127.0.0.1:51694,
+                # req=org.apache.ignite.internal.processors.platform.client.cache.ClientCachePutRequest@1f33101e]
+                res = re.match("Client request received .*?req=org.apache.ignite.internal.processors."
+                            "platform.client.cache.ClientCache([a-zA-Z]+)Request@", line)
+
+                if res is not None:
+                    yield res.group(1)
+    }
+
+    static getRequestGridIdx(message="Get") {
+        let res = -1
+        for(const i = 1; i < 5; ++i) {
+            for (const logFile of TestingHelper.getLogFiles(idx)) {
+                for (const log of readLogFile(logFile, i)) {
+                    if (log == message) {
+                        res = i;
+                    }
+                }
+            }
+        }
+
+        return res;
+    }
+
     static getLogFiles(idx) {
         const glob = require("glob");
         // glob package only works with slashes so no need in 'path' here.

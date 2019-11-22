@@ -184,6 +184,20 @@ class TestingHelper {
         return arrayValues;
     }
 
+    // Initializes only cluster
+    static async initClusterOnly(serversNum = 1, needLogging = false) {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
+        
+        await TestingHelper.startTestServers(needLogging, serversNum);
+    }
+
+    // Create test client instance
+    static makeClient() {
+        const client = new IgniteClient();
+        client.setDebug(config.debug);
+        return client;
+    }
+
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
     static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, needLogging = false, endpoints) {
@@ -194,8 +208,7 @@ class TestingHelper {
 
         await TestingHelper.startTestServers(needLogging, serversNum);
 
-        TestingHelper._igniteClient = new IgniteClient();
-        TestingHelper._igniteClient.setDebug(config.debug);
+        TestingHelper._igniteClient = TestingHelper.makeClient();
         await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...endpoints).
             setConnectionOptions(false, null, affinityAwareness));
     }
@@ -204,7 +217,8 @@ class TestingHelper {
     // Should be called from any test suite afterAll method.
     static async cleanUp() {
         try {
-            await TestingHelper.igniteClient.disconnect();
+            if (TestingHelper.igniteClient)
+                await TestingHelper.igniteClient.disconnect();
         }
         finally {
             TestingHelper.stopTestServers();

@@ -40,7 +40,7 @@ describe('affinity awareness with single server checks by logs test suite >', ()
             then(async () => {
                 const serverNum = 3;
                 let endpoints = TestingHelper.getEndpoints(serverNum);
-                await TestingHelper.init(true, serverNum, true, [endpoints[0]]);
+                await TestingHelper.init(true, serverNum, false, [endpoints[0]]);
                 igniteClient = TestingHelper.igniteClient;
                 await testSuiteCleanup(done);
             }).
@@ -55,7 +55,7 @@ describe('affinity awareness with single server checks by logs test suite >', ()
                 await TestingHelper.cleanUp();
             }).
             then(done).
-            catch(error => done());
+            catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
     it('all cache operations with affinity aware client on single server', (done) => {

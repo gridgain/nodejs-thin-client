@@ -39,7 +39,7 @@ describe('affinity awareness failover test suite >', () => {
         Promise.resolve().
             then(async () => {
                 const serverNum = 3;
-                await TestingHelper.init(true, serverNum, false);
+                await TestingHelper.init(true, serverNum, true);
                 igniteClient = TestingHelper.igniteClient;
             }).
             then(done).
@@ -55,7 +55,7 @@ describe('affinity awareness failover test suite >', () => {
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('cache operation fails gracefully when node is killed', (done) => {
+    it('cache operation fails gracefully when all nodes is killed', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
@@ -79,6 +79,26 @@ describe('affinity awareness failover test suite >', () => {
                 }
 
                 throw 'Operation fail is expected';
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    it('cache operation does not fail when single node is killed', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 1;
+
+                // Put/Get
+                await cache.put(key, key);
+                expect(await cache.get(key)).toEqual(key);
+
+                // Killing node for the key
+                const serverId = findServerByLogs(serverNum);
+                TestingHelper.killNodeById(serverId);
+
+                expect(await cache.get(key)).toEqual(key);
             }).
             then(done).
             catch(error => done.fail(error));

@@ -345,6 +345,13 @@ class TestingHelper {
         }
     }
 
+    static killNodeById(idx) {
+        if (!TestingHelper._servers || idx < 0 || idx > TestingHelper._servers.length)
+            throw 'Invalid index';
+
+        TestingHelper.killNode(TestingHelper._servers[idx]);
+    }
+
     static killNode(proc) {
         if (TestingHelper.isWindows()) {
             child_process.spawnSync('taskkill', ['/F', '/T', '/PID', proc.pid.toString()])

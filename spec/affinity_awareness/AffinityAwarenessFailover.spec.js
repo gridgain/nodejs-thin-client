@@ -22,7 +22,6 @@ const Util = require('util');
 const config = require('../config');
 const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
-const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const Errors = IgniteClient.Errors;
 const CacheConfiguration = IgniteClient.CacheConfiguration;
 const CacheKeyConfiguration = IgniteClient.CacheKeyConfiguration;
@@ -32,21 +31,22 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness with checks of connection to cluster test suite >', () => {
+describe('affinity awareness failover test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
-    const serverNum = 3;
 
-    beforeAll((done) => {
+    beforeEach((done) => {
         Promise.resolve().
             then(async () => {
-                await TestingHelper.initClusterOnly(serverNum, false);
+                const serverNum = 3;
+                await TestingHelper.init(true, serverNum, false);
+                igniteClient = TestingHelper.igniteClient;
             }).
             then(done).
             catch(error => done.fail(error));
     }, TestingHelper.TIMEOUT);
 
-    afterAll((done) => {
+    afterEach((done) => {
         Promise.resolve().
             then(async () => {
                 await TestingHelper.cleanUp();
@@ -55,30 +55,38 @@ describe('affinity awareness with checks of connection to cluster test suite >',
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('client with affinity awareness and bad servers', (done) => {
+    it('cache operation fails gracefully when node is killed', (done) => {
         Promise.resolve().
             then(async () => {
-                const badEndpoints = ['127.0.0.1:10900', '127.0.0.1:10901'];
-                const realEndpoints = TestingHelper.getEndpoints(serverNum);
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 1;
 
-                for (const ep of realEndpoints)
-                    expect(badEndpoints).not.toContain(ep);
+                // Put/Get
+                await cache.put(key, key);
+                expect(await cache.get(key)).toEqual(key);
 
-                const client = TestingHelper.makeClient();
-                const cfg = new IgniteClientConfiguration(...badEndpoints).setConnectionOptions(false, null, true);
+                // Killing nodes
+                TestingHelper.stopTestServers();
 
+                // Get
                 try {
-                    await client.connect(cfg);
+                    await cache.put(key, key);
                 }
                 catch (error) {
-                    expect(error.stack).toContain('Connection failed');
+                    expect(error.stack).toContain('Cluster is unavailable');
 
                     return;
                 }
 
-                throw 'Connection should be rejected';
+                throw 'Operation fail is expected';
             }).
             then(done).
             catch(error => done.fail(error));
     });
+
+    async function getCache(keyType, valueType, cacheCfg = null) {
+        return (await igniteClient.getOrCreateCache(CACHE_NAME, cacheCfg)).
+            setKeyType(keyType).
+            setValueType(valueType);
+    }
 });

@@ -31,7 +31,7 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness with single server checks by logs test suite >', () => {
+describe('affinity awareness with single server test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
 

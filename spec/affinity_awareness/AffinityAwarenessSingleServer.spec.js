@@ -61,27 +61,100 @@ describe('affinity awareness with single server checks by logs test suite >', ()
     it('all cache operations with affinity aware client on single server', (done) => {
         Promise.resolve().
             then(async () => {
-                const val = "someVal";
-                const valType = ObjectType.PRIMITIVE_TYPE.STRING;
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 1;
+                let key2 = 2;
 
-                for (let keyType of Object.keys(TestingHelper.primitiveValues)) {
-                    keyType = parseInt(keyType);
-                    if (keyType == ObjectType.PRIMITIVE_TYPE.DECIMAL) {
-                        // Decimal is not a recommended type to use as a key
-                        continue;
-                    }
-                    const typeInfo1 = TestingHelper.primitiveValues[keyType];
-                    for (let value1 of typeInfo1.values) {
-                        await putAndCheckLocalPeek(keyType, valType, value1, val);
-                        if (typeInfo1.typeOptional) {
-                            await putAndCheckLocalPeek(null, valType, value1, val);
-                        }
-                    }
-                }
+                // Put/Get
+                await cache.put(key, key);
+                expect(await cache.get(key)).toEqual(key);
+
+                // Replace
+                let res = await cache.replace(key, key2);
+                expect(res).toBe(true);
+                expect(await cache.get(key)).toEqual(key2);
+
+                // ContainsKey
+                res = await cache.containsKey(key2);
+                expect(res).toBe(false);
+
+                await cache.put(key2, key2);
+                res = await cache.containsKey(key2);
+                expect(res).toBe(true);
+
+                // Clear
+                await cache.clearKey(key2);
+                expect(await cache.get(key2)).toBeNull;
+
+                // GetAndPut
+                await cache.put(key, key);
+                res = await cache.getAndPut(key, key2);
+                expect(res).toEqual(key);
+                expect(await cache.get(key)).toEqual(key2);
+
+                // GetAndPutIfAbsent
+                await cache.clearKey(key);
+                res = await cache.getAndPutIfAbsent(key, key);
+                let res2 = await cache.getAndPutIfAbsent(key, key2);
+                expect(res).toBeNull();
+                expect(res2).toEqual(key);
+                expect(await cache.get(key)).toEqual(key);
+
+                // PutIfAbsent
+                await cache.clearKey(key);
+                res = await cache.putIfAbsent(key, key);
+                res2 = await cache.putIfAbsent(key, key2);
+                expect(res).toBe(true);
+                expect(res2).toBe(false);
+                expect(await cache.get(key)).toEqual(key);
+
+                // GetAndRemove
+                await cache.put(key, key);
+                res = await cache.getAndRemove(key);
+                expect(res).toEqual(key);
+                expect(await cache.get(key)).toBeNull();
+            
+                // GetAndReplace
+                await cache.put(key, key);
+                res = await cache.getAndReplace(key, key2);
+                expect(res).toEqual(key);
+                expect(await cache.get(key)).toEqual(key2);
+            
+                // RemoveKey
+                await cache.put(key, key);
+                await cache.removeKey(key);
+                expect(await cache.get(key)).toBeNull();
+            
+                // RemoveIfEquals
+                await cache.put(key, key);
+                res = await cache.removeIfEquals(key, key2);
+                res2 = await cache.removeIfEquals(key, key);
+                expect(res).toBe(false);
+                expect(res2).toBe(true);
+                expect(await cache.get(key)).toBeNull();
+            
+                // Replace
+                await cache.put(key, key);
+                await cache.replace(key, key2);
+                expect(await cache.get(key)).toEqual(key2);
+            
+                // ReplaceIfEquals
+                await cache.put(key, key);
+                res = await cache.replaceIfEquals(key, key2, key2);
+                res2 = await cache.replaceIfEquals(key, key, key2);
+                expect(res).toBe(false);
+                expect(res2).toBe(true);
+                expect(await cache.get(key)).toEqual(key2);
             }).
             then(done).
             catch(error => done.fail(error));
     });
+
+    async function getCache(keyType, valueType, cacheCfg = null) {
+        return (await igniteClient.getOrCreateCache(CACHE_NAME, cacheCfg)).
+            setKeyType(keyType).
+            setValueType(valueType);
+    }
 
     function createCacheConfig(keyCfg = null) {
         return new CacheConfiguration().

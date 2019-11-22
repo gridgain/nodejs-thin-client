@@ -217,8 +217,10 @@ class TestingHelper {
     // Should be called from any test suite afterAll method.
     static async cleanUp() {
         try {
-            if (TestingHelper.igniteClient)
-                await TestingHelper.igniteClient.disconnect();
+            if (TestingHelper._igniteClient) {
+                await TestingHelper._igniteClient.disconnect();
+                delete TestingHelper._igniteClient;
+            }
         }
         finally {
             TestingHelper.stopTestServers();
@@ -401,20 +403,25 @@ class TestingHelper {
         const nodeCfg = TestingHelper.getConfigPath(needLogging, idx);
         const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
 
+        srv.on('error', (error) => {
+            jasmine.fail('Failed to start node: ' + error);
+            throw 'Failed to start node: ' + error;
+        });
+
         if (config.debug) {
             srv.stdout.on('data', (data) => {
                 console.log(data.toString());
             });
             srv.stderr.on('data', (data) => {
                 console.error(data.toString());
-            });    
+            });
         }
 
         const started = await TestingHelper.waitForCondition(async () => 
             TestingHelper.tryConnectClient(idx), 10000);
 
         if (!started) {
-            srv.kill('SIGKILL');
+            TestingHelper.killNode(srv);
             throw 'Failed to start Node: timeout while trying to connect';
         }
 

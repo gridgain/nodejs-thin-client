@@ -31,7 +31,7 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness failover test suite >', () => {
+describe('affinity awareness multiple connections test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
     const serverNum = 3;

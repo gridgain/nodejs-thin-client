@@ -344,10 +344,12 @@ class TestingHelper {
             TestingHelper._servers.push(await TestingHelper.startNode(needLogging, i));
 
             const logs = TestingHelper.getLogFiles(i);
-            if (logs.length != 1)
-                throw 'Unexpected number of log files for node ' + i;
+            if (logs.length > 0) {
+                if (logs.length > 1)
+                    throw 'Unexpected number of log files for node ' + i;
 
-            TestingHelper._logReaders.push(new LogReader(logs[0]));
+                TestingHelper._logReaders.push(new LogReader(logs[0]));
+            }
         }
     }
 

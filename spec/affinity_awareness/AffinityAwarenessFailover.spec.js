@@ -34,11 +34,11 @@ const CACHE_NAME = '__test_cache';
 describe('affinity awareness failover test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
+    const serverNum = 3;
 
     beforeEach((done) => {
         Promise.resolve().
             then(async () => {
-                const serverNum = 3;
                 await TestingHelper.init(true, serverNum, true);
                 igniteClient = TestingHelper.igniteClient;
             }).
@@ -98,7 +98,9 @@ describe('affinity awareness failover test suite >', () => {
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing node for the key
-                const serverId = findServerByLogs(serverNum);
+                const serverId = await TestingHelper.getRequestGridIdx();
+                expect(serverId).not.toEqual(-1, 'Can not find node for a get request');
+
                 TestingHelper.killNodeById(serverId);
 
                 expect(await cache.get(key)).toEqual(key);

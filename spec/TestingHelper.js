@@ -22,9 +22,10 @@ const JasmineReporters = require('jasmine-reporters');
 const psTree = require('ps-tree');
 const Util = require('util');
 const path = require('path');
-const fs = require("fs");
+const fs = require('fs');
 const child_process = require('child_process');
 const config = require('./config');
+const LogReader = require('./LogReader');
 const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const Errors = IgniteClient.Errors;
@@ -221,6 +222,9 @@ class TestingHelper {
                 await TestingHelper._igniteClient.disconnect();
                 delete TestingHelper._igniteClient;
             }
+            
+            if (TestingHelper._logReaders)
+                delete TestingHelper._logReaders;
         }
         finally {
             TestingHelper.stopTestServers();
@@ -269,9 +273,9 @@ class TestingHelper {
 
     static getConfigPath(needLogging, idx = 1) {
         if (!needLogging)
-            return path.join(__dirname, "configs", "ignite-config-default.xml");
+            return path.join(__dirname, 'configs', 'ignite-config-default.xml');
 
-        return path.join(__dirname, "configs", Util.format("ignite-config-%d.xml", idx));
+        return path.join(__dirname, 'configs', Util.format('ignite-config-%d.xml', idx));
     }
     
     static async sleep(milliseconds) {
@@ -307,7 +311,7 @@ class TestingHelper {
     static async tryConnectClient(idx = 1, debug = false) {
         const endPoint = Util.format('127.0.0.1:%d', 10800 + idx);
 
-        TestingHelper.logDebug("Checking endpoint: " + endPoint);
+        TestingHelper.logDebug('Checking endpoint: ' + endPoint);
 
         let cli = new IgniteClient();
         cli.setDebug(debug);
@@ -315,12 +319,12 @@ class TestingHelper {
         return await cli.connect(new IgniteClientConfiguration(endPoint).
             setConnectionOptions(false, null, false)).
             then(() => {
-                TestingHelper.logDebug("Successfully connected");
+                TestingHelper.logDebug('Successfully connected');
                 cli.disconnect();
                 return true;
             }).
             catch(error => {
-                TestingHelper.logDebug("Error while connecting: " + error.toString());
+                TestingHelper.logDebug('Error while connecting: ' + error.toString());
                 return false;
             });
     }
@@ -332,9 +336,19 @@ class TestingHelper {
 
         if (!TestingHelper._servers)
             TestingHelper._servers = [];
+        
+        if (!TestingHelper._logReaders)
+            TestingHelper._logReaders = [];
 
-        for (let i = 1; i < serversNum + 1; ++i)
+        for (let i = 1; i < serversNum + 1; ++i) {
             TestingHelper._servers.push(await TestingHelper.startNode(needLogging, i));
+
+            const logs = TestingHelper.getLogFiles(i);
+            if (logs.length != 1)
+                throw 'Unexpected number of log files for node ' + i;
+
+            TestingHelper._logReaders.push(new LogReader(logs[0]));
+        }
     }
 
     static stopTestServers() {
@@ -351,7 +365,9 @@ class TestingHelper {
         if (!TestingHelper._servers || idx < 0 || idx > TestingHelper._servers.length)
             throw 'Invalid index';
 
-        TestingHelper.killNode(TestingHelper._servers[idx]);
+        const srv = TestingHelper._servers[idx];
+        if (srv)
+            TestingHelper.killNode(srv);
     }
 
     static killNode(proc) {
@@ -372,54 +388,38 @@ class TestingHelper {
 
     // Waiting for distribution map to be obtained.
     // It has been requested during the "put" operation before calling this function
-    async static waitMapObtained(igniteClient, cache) {
+    static async waitMapObtained(igniteClient, cache) {
         let waitOk = await TestingHelper.waitForCondition(() => {
             return igniteClient._router._distributionMap.has(cache._cacheId);
         }, 1000);
 
         if (!waitOk)
-            throw "getting of partition map timed out";
+            throw 'getting of partition map timed out';
     }
 
-    static readLogFile(file, idx) {
-        i = -1;
-        with open(file) as f:
-            lines = f.readlines()
-            for line in lines:
-                i += 1
-
-                if i < read_log_file.last_line[idx]:
-                    continue
-
-                if i > read_log_file.last_line[idx]:
-                    read_log_file.last_line[idx] = i
-
-                # Example: Client request received [reqId=1, addr=/127.0.0.1:51694,
-                # req=org.apache.ignite.internal.processors.platform.client.cache.ClientCachePutRequest@1f33101e]
-                res = re.match("Client request received .*?req=org.apache.ignite.internal.processors."
-                            "platform.client.cache.ClientCache([a-zA-Z]+)Request@", line)
-
-                if res is not None:
-                    yield res.group(1)
+    static readLogFile(idx) {
+        return TestingHelper._logReaders[idx].nextRequest();
     }
 
-    static getRequestGridIdx(message="Get") {
+    static async getRequestGridIdx(message='Get') {
         let res = -1
-        for(const i = 1; i < 5; ++i) {
-            for (const logFile of TestingHelper.getLogFiles(idx)) {
-                for (const log of readLogFile(logFile, i)) {
-                    if (log == message) {
-                        res = i;
-                    }
-                }
-            }
+        for(let i = 0; i < TestingHelper._logReaders.length; ++i) {
+            const logReader = TestingHelper._logReaders[i];
+            let req = null;
+            do {
+                req = await logReader.nextRequest();
+                if (req === message)
+                    res = i + 1;
+            } while (req != null);
         }
+        
+        TestingHelper.logDebug('Request node: ' + res);
 
         return res;
     }
 
     static getLogFiles(idx) {
-        const glob = require("glob");
+        const glob = require('glob');
         // glob package only works with slashes so no need in 'path' here.
         const logsPattern = Util.format('./logs/ignite-log-%d*.txt', idx);
         const res = glob.sync(logsPattern);

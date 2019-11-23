@@ -18,23 +18,11 @@
 
 require('jasmine-expect');
 
-const Util = require('util');
-const config = require('../config');
 const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
-const Errors = IgniteClient.Errors;
-const CacheConfiguration = IgniteClient.CacheConfiguration;
-const CacheKeyConfiguration = IgniteClient.CacheKeyConfiguration;
-const ObjectType = IgniteClient.ObjectType;
-const BinaryObject = IgniteClient.BinaryObject;
-const ComplexObjectType = IgniteClient.ComplexObjectType;
-
-const CACHE_NAME = '__test_cache';
 
 describe('affinity awareness with checks of connection to cluster test suite >', () => {
-    let igniteClient = null;
-    const affinityKeyField = 'affKeyField';
     const serverNum = 3;
 
     beforeAll((done) => {

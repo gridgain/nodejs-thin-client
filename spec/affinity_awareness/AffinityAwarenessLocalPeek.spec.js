@@ -18,11 +18,8 @@
 
 require('jasmine-expect');
 
-const Util = require('util');
-const config = require('../config');
 const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
-const Errors = IgniteClient.Errors;
 const CacheConfiguration = IgniteClient.CacheConfiguration;
 const CacheKeyConfiguration = IgniteClient.CacheKeyConfiguration;
 const ObjectType = IgniteClient.ObjectType;

@@ -19,12 +19,10 @@
 require('jasmine-expect');
 
 const IgniteClient = require('@gridgain/thin-client');
-const ObjectType = IgniteClient.ObjectType;
 
 // Helper class for testing affinity awareness feature of @gridgain/thin-client library.
 class AffinityAwarenessTestUtils {
-    async testAllCacheOperations(igniteClient) {
-        const cache = await getCache(igniteClient, ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+    static async testAllCacheOperations(cache) {
         let key = 1;
         let key2 = 2;
 
@@ -108,12 +106,6 @@ class AffinityAwarenessTestUtils {
         expect(res).toBe(false);
         expect(res2).toBe(true);
         expect(await cache.get(key)).toEqual(key2);
-    }
-    
-    async getCache(igniteClient, keyType, valueType, cacheCfg = null) {
-        return (await igniteClient.getOrCreateCache(CACHE_NAME, cacheCfg)).
-            setKeyType(keyType).
-            setValueType(valueType);
     }
 }
 

@@ -19,53 +19,83 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
-const CUSTOM_AFFINITY_CACHE = 'custom-affinity';
 
-describe('affinity awareness multiple connections test suite >', () => {
+describe('affinity awareness multiple connections failover test suite >', () => {
     let igniteClient = null;
     const serverNum = 3;
 
-    beforeAll((done) => {
+    beforeEach((done) => {
         Promise.resolve().
             then(async () => {
                 await TestingHelper.init(true, serverNum, true);
                 igniteClient = TestingHelper.igniteClient;
-                await testSuiteCleanup(done);
             }).
             then(done).
             catch(error => done.fail(error));
     }, TestingHelper.TIMEOUT);
 
-    afterAll((done) => {
+    afterEach((done) => {
         Promise.resolve().
             then(async () => {
-                await testSuiteCleanup(done);
                 await TestingHelper.cleanUp();
             }).
             then(done).
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('all cache operations with affinity awareness and multiple connections', (done) => {
+    it('cache operation fails gracefully when all nodes are killed', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                let key = 1;
+
+                // Put/Get
+                await cache.put(key, key);
+                expect(await cache.get(key)).toEqual(key);
+
+                // Killing nodes
+                TestingHelper.stopTestServers();
+
+                // Get
+                try {
+                    await cache.put(key, key);
+                }
+                catch (error) {
+                    expect(error.stack).toContain('Cluster is unavailable');
+
+                    return;
+                }
+
+                throw 'Operation fail is expected';
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and bad affinity', (done) => {
+    it('cache operation does not fail when single node is killed', (done) => {
         Promise.resolve().
             then(async () => {
-                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 1;
+
+                // Put to inialize partition mapping
+                await cache.put(key, key);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+
+                // Get to find out the right node
+                expect(await cache.get(key)).toEqual(key);
+
+                // Killing node for the key
+                const serverId = await TestingHelper.getRequestGridIdx();
+                expect(serverId).not.toEqual(-1, 'Can not find node for a get request');
+
+                TestingHelper.killNodeById(serverId);
+
+                expect(await cache.get(key)).toEqual(key);
             }).
             then(done).
             catch(error => done.fail(error));
@@ -75,10 +105,5 @@ describe('affinity awareness multiple connections test suite >', () => {
         return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
             setKeyType(keyType).
             setValueType(valueType);
-    }
-    
-    async function testSuiteCleanup(done) {
-        await TestingHelper.destroyCache(CACHE_NAME, done);
-        await TestingHelper.destroyCache(CUSTOM_AFFINITY_CACHE, done);
     }
 });

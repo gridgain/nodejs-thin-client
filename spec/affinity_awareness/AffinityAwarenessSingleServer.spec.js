@@ -48,10 +48,19 @@ describe('affinity awareness with single server test suite >', () => {
 
     it('all cache operations with affinity aware client and single connection', (done) => {
         Promise.resolve().
-            then(AffinityAwarenessTestUtils.testAllCacheOperations).
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+            }).
             then(done).
             catch(error => done.fail(error));
     });
+
+    async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
+        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
+            setKeyType(keyType).
+            setValueType(valueType);
+    }
 
     async function testSuiteCleanup(done) {
         await TestingHelper.destroyCache(CACHE_NAME, done);

@@ -58,7 +58,7 @@ describe('affinity awareness with single server test suite >', () => {
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('all cache operations with affinity aware client on single server', (done) => {
+    it('all cache operations with affinity aware client and single connection', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);

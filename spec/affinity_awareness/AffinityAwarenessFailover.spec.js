@@ -55,7 +55,7 @@ describe('affinity awareness failover test suite >', () => {
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('cache operation fails gracefully when all nodes is killed', (done) => {
+    it('cache operation fails gracefully when all nodes are killed', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);

@@ -334,22 +334,28 @@ class TestingHelper {
         if (serversNum < 0)
             throw 'Wrong number of servers to start: ' + serversNum;
 
+        for (let i = 1; i < serversNum + 1; ++i)
+            await TestingHelper.startTestServer(needLogging, i);
+    }
+
+    static async startTestServer(needLogging, idx) {
         if (!TestingHelper._servers)
             TestingHelper._servers = [];
         
         if (!TestingHelper._logReaders)
             TestingHelper._logReaders = [];
 
-        for (let i = 1; i < serversNum + 1; ++i) {
-            TestingHelper._servers.push(await TestingHelper.startNode(needLogging, i));
+        TestingHelper._servers.push(await TestingHelper._startNode(needLogging, idx));
 
-            const logs = TestingHelper.getLogFiles(i);
-            if (logs.length > 0) {
-                if (logs.length > 1)
-                    throw 'Unexpected number of log files for node ' + i;
+        const logs = TestingHelper.getLogFiles(idx);
+        if (!needLogging && logs.length > 0)
+            throw 'Unexpected log file for node ' + i;
 
-                TestingHelper._logReaders.push(new LogReader(logs[0]));
-            }
+        if (needLogging) {
+            if (logs.length != 1)
+                throw 'Unexpected number of log files for node ' + i;
+
+            TestingHelper._logReaders.push(new LogReader(logs[0]));
         }
     }
 
@@ -434,7 +440,7 @@ class TestingHelper {
             fs.unlinkSync(f);
     }
 
-    static async startNode(needLogging, idx = 1) {
+    static async _startNode(needLogging, idx = 1) {
         TestingHelper.clearLogs(idx);
 
         const runner = TestingHelper.getNodeRunner();

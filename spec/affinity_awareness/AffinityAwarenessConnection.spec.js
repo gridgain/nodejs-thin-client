@@ -20,21 +20,23 @@ require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
+const ObjectType = IgniteClient.ObjectType;
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 
-describe('affinity awareness with checks of connection to cluster test suite >', () => {
-    const serverNum = 3;
+const CACHE_NAME = '__test_cache';
+const SERVER_NUM = 3;
 
-    beforeAll((done) => {
+describe('affinity awareness with checks of connection to cluster test suite >', () => {
+    beforeEach((done) => {
         Promise.resolve().
             then(async () => {
-                await TestingHelper.initClusterOnly(serverNum, false);
+                await TestingHelper.initClusterOnly(SERVER_NUM, false);
             }).
             then(done).
             catch(error => done.fail(error));
     }, TestingHelper.TIMEOUT);
 
-    afterAll((done) => {
+    afterEach((done) => {
         Promise.resolve().
             then(async () => {
                 await TestingHelper.cleanUp();
@@ -47,7 +49,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
         Promise.resolve().
             then(async () => {
                 const badEndpoints = ['127.0.0.1:10900', '127.0.0.1:10901'];
-                const realEndpoints = TestingHelper.getEndpoints(serverNum);
+                const realEndpoints = TestingHelper.getEndpoints(SERVER_NUM);
 
                 for (const ep of realEndpoints)
                     expect(badEndpoints).not.toContain(ep);
@@ -65,6 +67,52 @@ describe('affinity awareness with checks of connection to cluster test suite >',
                 }
 
                 throw 'Connection should be rejected';
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+    
+    it('cache operation routed to new started node', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const newNodeId = SERVER_NUM + 1;
+                const endpoints = TestingHelper.getEndpoints(newNodeId);
+
+                const client = TestingHelper.makeClient();
+                const cfg = new IgniteClientConfiguration(...endpoints).setConnectionOptions(false, null, true);
+                await client.connect(cfg);
+
+                const cache = await client.getOrCreateCache(CACHE_NAME).
+                    setKeyType(ObjectType.PRIMITIVE_TYPE.INTEGER).
+                    setValueType(ObjectType.PRIMITIVE_TYPE.INTEGER);
+
+                // Put to inialize partition mapping
+                await cache.put(1, 1);
+                await TestingHelper.waitMapObtained(client, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                // Get to find out the right node
+                expect(await cache.get(key)).toEqual(key);
+
+                // Starting new node
+                await TestingHelper.startTestServer(true, newNodeId);
+                
+                // Update partition mapping
+                await cache.put(2, 2);
+                await TestingHelper.waitMapObtained(client, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                let keys = 1000;
+                for (let i = 1; i < keys; ++i) {
+                    await cache.put(i * 1433, i);
+                    const serverId = await TestingHelper.getRequestGridIdx();
+
+                    // It means request got to the new node.
+                    if (serverId == newNodeId)
+                        return;
+                }
+
+                throw 'Not a single request out of ' + keys + ' got to the new node';
             }).
             then(done).
             catch(error => done.fail(error));

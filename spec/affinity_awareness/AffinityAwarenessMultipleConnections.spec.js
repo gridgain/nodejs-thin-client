@@ -25,15 +25,15 @@ const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
 const CUSTOM_AFFINITY_CACHE = 'custom-affinity';
+const SERVER_NUM = 3;
 
 describe('affinity awareness multiple connections test suite >', () => {
     let igniteClient = null;
-    const serverNum = 3;
 
     beforeAll((done) => {
         Promise.resolve().
             then(async () => {
-                await TestingHelper.init(true, serverNum, true);
+                await TestingHelper.init(true, SERVER_NUM, true);
                 igniteClient = TestingHelper.igniteClient;
                 await testSuiteCleanup(done);
             }).

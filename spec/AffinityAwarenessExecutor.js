@@ -20,9 +20,7 @@ const jasmine = new Jasmine();
 jasmine.loadConfig({
     'spec_dir': 'spec',
     'spec_files': [
-        "affinity_awareness/**/*[sS]pec.js",
-	    "cache/**/*[sS]pec.js",
-	    "query/**/*[sS]pec.js"
+        "affinity_awareness/AffinityAwarenessConnection.spec.js"
     ],
     "random": false,
     // If this is set to true, we won't clean up environment, i.e. stop nodes

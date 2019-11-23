@@ -23,15 +23,15 @@ const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
+const SERVER_NUM = 3;
 
 describe('affinity awareness multiple connections failover test suite >', () => {
     let igniteClient = null;
-    const serverNum = 3;
 
     beforeEach((done) => {
         Promise.resolve().
             then(async () => {
-                await TestingHelper.init(true, serverNum, true);
+                await TestingHelper.init(true, SERVER_NUM, true);
                 igniteClient = TestingHelper.igniteClient;
             }).
             then(done).

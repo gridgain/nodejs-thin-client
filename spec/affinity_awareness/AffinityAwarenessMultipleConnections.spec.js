@@ -21,6 +21,7 @@ require('jasmine-expect');
 const Util = require('util');
 const config = require('../config');
 const TestingHelper = require('../TestingHelper');
+const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const Errors = IgniteClient.Errors;
 const CacheConfiguration = IgniteClient.CacheConfiguration;
@@ -105,6 +106,13 @@ describe('affinity awareness multiple connections test suite >', () => {
 
                 expect(await cache.get(key)).toEqual(key);
             }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    it('all cache operations with affinity awareness and multiple connections', (done) => {
+        Promise.resolve().
+            then(AffinityAwarenessTestUtils.testAllCacheOperations).
             then(done).
             catch(error => done.fail(error));
     });

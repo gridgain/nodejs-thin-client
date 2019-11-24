@@ -396,10 +396,10 @@ class TestingHelper {
 
     // Waiting for distribution map to be obtained.
     // It has been requested during the "put" operation before calling this function
-    static async waitMapObtained(igniteClient, cache) {
+    static async waitMapObtained(igniteClient, cache, timeout=1000) {
         let waitOk = await TestingHelper.waitForCondition(() => {
             return igniteClient._router._distributionMap.has(cache._cacheId);
-        }, 1000);
+        }, timeout);
 
         if (!waitOk)
             throw 'getting of partition map timed out';

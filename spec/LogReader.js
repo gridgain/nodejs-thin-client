@@ -32,8 +32,9 @@ class LogReader {
     }
 
     async nextRequest() {
-        let stream = fs.createReadStream(this._file);
+        let stream = null;
         try {
+            stream = fs.createReadStream(this._file);
             let readInterface = readline.createInterface({
                 input: stream,
                 crlfDelay: Infinity
@@ -55,8 +56,12 @@ class LogReader {
             }
             return null;
         }
+        catch (_error) {
+            return null;
+        }
         finally {
-            stream.close();
+            if (stream)
+                stream.close();
         }
     }
 }

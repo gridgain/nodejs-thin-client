@@ -30,7 +30,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
     beforeEach((done) => {
         Promise.resolve().
             then(async () => {
-                await TestingHelper.initClusterOnly(SERVER_NUM, false);
+                await TestingHelper.initClusterOnly(SERVER_NUM, true);
             }).
             then(done).
             catch(error => done.fail(error));
@@ -76,13 +76,13 @@ describe('affinity awareness with checks of connection to cluster test suite >',
         Promise.resolve().
             then(async () => {
                 const newNodeId = SERVER_NUM + 1;
-                const endpoints = TestingHelper.getEndpoints(newNodeId);
+                const endpoints = TestingHelper.getEndpoints(SERVER_NUM + 1);
 
                 const client = TestingHelper.makeClient();
                 const cfg = new IgniteClientConfiguration(...endpoints).setConnectionOptions(false, null, true);
                 await client.connect(cfg);
 
-                const cache = await client.getOrCreateCache(CACHE_NAME).
+                const cache = (await client.getOrCreateCache(CACHE_NAME)). 
                     setKeyType(ObjectType.PRIMITIVE_TYPE.INTEGER).
                     setValueType(ObjectType.PRIMITIVE_TYPE.INTEGER);
 
@@ -92,20 +92,19 @@ describe('affinity awareness with checks of connection to cluster test suite >',
                 await TestingHelper.getRequestGridIdx('Put');
 
                 // Get to find out the right node
-                expect(await cache.get(key)).toEqual(key);
+                expect(await cache.get(1)).toEqual(1);
 
                 // Starting new node
                 await TestingHelper.startTestServer(true, newNodeId);
                 
                 // Update partition mapping
                 await cache.put(2, 2);
-                await TestingHelper.waitMapObtained(client, cache);
                 await TestingHelper.getRequestGridIdx('Put');
 
                 let keys = 1000;
                 for (let i = 1; i < keys; ++i) {
                     await cache.put(i * 1433, i);
-                    const serverId = await TestingHelper.getRequestGridIdx();
+                    const serverId = await TestingHelper.getRequestGridIdx('Put');
 
                     // It means request got to the new node.
                     if (serverId == newNodeId)

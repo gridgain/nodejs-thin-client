@@ -177,13 +177,7 @@ describe('affinity awareness multiple connections test suite >', () => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, REPLICATED_CACHE);
-                
-                // Put to inialize partition mapping
-                await cache.put(0, 0);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
-                await TestingHelper.getRequestGridIdx('Put');
-
-                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 23545);
+                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
             }).
             then(done).
             catch(error => done.fail(error));

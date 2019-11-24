@@ -349,11 +349,11 @@ class TestingHelper {
 
         const logs = TestingHelper.getLogFiles(idx);
         if (!needLogging && logs.length > 0)
-            throw 'Unexpected log file for node ' + i;
+            throw 'Unexpected log file for node ' + idx;
 
         if (needLogging) {
             if (logs.length != 1)
-                throw 'Unexpected number of log files for node ' + i;
+                throw 'Unexpected number of log files for node ' + idx;
 
             TestingHelper._logReaders.push(new LogReader(logs[0]));
         }
@@ -445,18 +445,18 @@ class TestingHelper {
 
         const runner = TestingHelper.getNodeRunner();
 
-        TestingHelper.logDebug('Trying to start node using following command: ' + runner);
-    
         let nodeEnv = {};
         for (const ev in process.env)
             nodeEnv[ev] = process.env[ev];
 
         if (config.debug) {
             nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
-                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 ';
+                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=' + 5005 + idx;
         }
 
         const nodeCfg = TestingHelper.getConfigPath(needLogging, idx);
+        TestingHelper.logDebug('Trying to start node using following command: ' + runner + ' ' + nodeCfg);
+
         const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
 
         srv.on('error', (error) => {

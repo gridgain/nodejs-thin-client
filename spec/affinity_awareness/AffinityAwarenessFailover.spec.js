@@ -82,16 +82,16 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
                 let key = 1;
 
-                // Put to inialize partition mapping
-                await cache.put(key, key);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, key, true);
 
-                // Get to find out the right node
+                // Put test value to find out the right node
+                await cache.put(key, key);
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing node for the key
-                const serverId = await TestingHelper.getRequestGridIdx();
-                expect(serverId).not.toEqual(-1, 'Can not find node for a get request');
+                const serverId = await TestingHelper.getRequestGridIdx('Put');
+                expect(serverId).not.toEqual(-1, 'Can not find node for a put request');
 
                 TestingHelper.killNodeById(serverId);
 
@@ -108,22 +108,25 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
                 let key = 1;
 
-                // Put to inialize partition mapping
-                await cache.put(key, key);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, key, true);
 
-                // Get to find out the right node
+                // Put test value to find out the right node
+                await cache.put(key, key);
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing node for the key
-                const serverId = await TestingHelper.getRequestGridIdx();
-                expect(serverId).not.toEqual(-1, 'Can not find node for a get request');
+                const serverId = await TestingHelper.getRequestGridIdx('Put');
+                expect(serverId).not.toEqual(-1, 'Can not find node for a put request');
 
                 TestingHelper.killNodeById(serverId);
                 TestingHelper.startTestServer(true, serverId);
+                
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, key, true);
 
                 expect(await cache.get(key)).toEqual(key);
-                const serverId2 = await TestingHelper.getRequestGridIdx();
+                const serverId2 = await TestingHelper.getRequestGridIdx('Get');
 
                 expect(serverId2).toEqual(serverId);
             }).
@@ -132,8 +135,6 @@ describe('affinity awareness multiple connections failover test suite >', () => 
     });
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
-            setKeyType(keyType).
-            setValueType(valueType);
+        return await AffinityAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
     }
 });

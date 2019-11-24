@@ -285,15 +285,14 @@ class TestingHelper {
     static async waitForCondition(cond, timeout) {
         const startTime = Date.now();
 
-        while (!await cond()) {
-            if (Date.now() - startTime > timeout) {
-                return false;
-            }
-
+        do {
+            const ok = await cond();
+            if (ok)
+                return true;
             await TestingHelper.sleep(100);
-        }
+        } while ((Date.now() - startTime) < timeout);
 
-        return true;
+        return await cond();
     }
 
     static async waitForConditionOrThrow(cond, timeout) {
@@ -394,9 +393,30 @@ class TestingHelper {
           });
     }
 
+    // Make sure that topology is stable, version won't change and partition map is up-to-date for the given cache.
+    static async ensureStableTopology(igniteClient, cache, key = 1, skipLogs=false, timeout=3000) {
+        let oldTopVer = igniteClient._router._affinityTopologyVer;
+        
+        await cache.get(key);
+
+        let newTopVer = igniteClient._router._affinityTopologyVer;
+
+        while (newTopVer != oldTopVer) {
+            oldTopVer = newTopVer;
+            await cache.get(key);
+            newTopVer = igniteClient._router._affinityTopologyVer;
+        }
+
+        // Now when topology stopped changing, let's ensure we received distribution map.
+        await TestingHelper._waitMapObtained(igniteClient, cache, timeout)
+
+        if (skipLogs)
+            await TestingHelper.getRequestGridIdx();
+    }
+
     // Waiting for distribution map to be obtained.
     // It has been requested during the "put" operation before calling this function
-    static async waitMapObtained(igniteClient, cache, timeout=3000) {
+    static async _waitMapObtained(igniteClient, cache, timeout=3000) {
         let waitOk = await TestingHelper.waitForCondition(() => {
             return igniteClient._router._distributionMap.has(cache._cacheId);
         }, timeout);
@@ -416,12 +436,13 @@ class TestingHelper {
             let req = null;
             do {
                 req = await logReader.nextRequest();
+                TestingHelper.logDebug('Node' + (i+1) +': Got ' + req + ', looking for ' + message);
                 if (req === message)
                     res = i + 1;
             } while (req != null);
         }
         
-        TestingHelper.logDebug('Request "' + message + ' "node: ' + res);
+        TestingHelper.logDebug('Request "' + message + '" node: ' + res);
 
         return res;
     }

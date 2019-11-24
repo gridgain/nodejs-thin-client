@@ -55,6 +55,8 @@
             <list>
                 <bean class="org.apache.ignite.configuration.CacheConfiguration">
                     <property name="name" value="custom-affinity"/>
+                    <property name="cacheMode" value="PARTITIONED"/>
+                    <property name="writeSynchronizationMode" value="FULL_SYNC"/>
                     <property name="affinity">
                         <bean class="org.apache.ignite.internal.processors.affinity.LocalAffinityFunction"/>
                     </property>
@@ -64,23 +66,27 @@
                     <property name="name" value="partitioned0"/>
                     <property name="cacheMode" value="PARTITIONED"/>
                     <property name="backups" value="0"/>
+                    <property name="writeSynchronizationMode" value="FULL_SYNC"/>
                 </bean>
 
                 <bean class="org.apache.ignite.configuration.CacheConfiguration">
                     <property name="name" value="partitioned1"/>
                     <property name="cacheMode" value="PARTITIONED"/>
                     <property name="backups" value="1"/>
+                    <property name="writeSynchronizationMode" value="FULL_SYNC"/>
                 </bean>
 
                 <bean class="org.apache.ignite.configuration.CacheConfiguration">
                     <property name="name" value="partitioned3"/>
                     <property name="cacheMode" value="PARTITIONED"/>
                     <property name="backups" value="3"/>
+                    <property name="writeSynchronizationMode" value="FULL_SYNC"/>
                 </bean>
 
                 <bean class="org.apache.ignite.configuration.CacheConfiguration">
                     <property name="name" value="replicated"/>
                     <property name="cacheMode" value="REPLICATED"/>
+                    <property name="writeSynchronizationMode" value="FULL_SYNC"/>
                 </bean>
             </list>
         </property>

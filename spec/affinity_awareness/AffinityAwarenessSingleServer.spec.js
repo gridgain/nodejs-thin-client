@@ -57,9 +57,7 @@ describe('affinity awareness with single server test suite >', () => {
     });
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
-            setKeyType(keyType).
-            setValueType(valueType);
+        return await AffinityAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
     }
 
     async function testSuiteCleanup(done) {

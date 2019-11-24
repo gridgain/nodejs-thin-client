@@ -83,24 +83,20 @@ describe('affinity awareness with checks of connection to cluster test suite >',
                 const cfg = new IgniteClientConfiguration(...endpoints).setConnectionOptions(false, null, true);
                 await client.connect(cfg);
 
-                const cache = (await client.getOrCreateCache(CACHE_NAME)). 
-                    setKeyType(ObjectType.PRIMITIVE_TYPE.INTEGER).
-                    setValueType(ObjectType.PRIMITIVE_TYPE.INTEGER);
+                const cache = await AffinityAwarenessTestUtils.getOrCreateCache(
+                    client,
+                    ObjectType.PRIMITIVE_TYPE.INTEGER,
+                    ObjectType.PRIMITIVE_TYPE.INTEGER,
+                    CACHE_NAME);
 
-                // Put to inialize partition mapping
-                await cache.put(1, 1);
-                await TestingHelper.waitMapObtained(client, cache);
-                await TestingHelper.getRequestGridIdx('Put');
-
-                // Get to find out the right node
-                expect(await cache.get(1)).toEqual(1);
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(client, cache, 1, true);
 
                 // Starting new node
                 await TestingHelper.startTestServer(true, newNodeId);
                 
                 // Update partition mapping
-                await cache.put(2, 2);
-                await TestingHelper.getRequestGridIdx('Put');
+                await TestingHelper.ensureStableTopology(client, cache, 1, true);
 
                 let keys = 1000;
                 for (let i = 1; i < keys; ++i) {

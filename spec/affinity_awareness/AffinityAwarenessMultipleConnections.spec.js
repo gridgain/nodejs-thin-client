@@ -130,10 +130,8 @@ describe('affinity awareness multiple connections test suite >', () => {
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED0_CACHE);
                 
-                // Put to inialize partition mapping
-                await cache.put(0, 0);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
-                await TestingHelper.getRequestGridIdx('Put');
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
                 await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 42);
             }).
@@ -146,10 +144,8 @@ describe('affinity awareness multiple connections test suite >', () => {
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED1_CACHE);
                 
-                // Put to inialize partition mapping
-                await cache.put(0, 0);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
-                await TestingHelper.getRequestGridIdx('Put');
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
                 await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 100500);
             }).
@@ -162,10 +158,8 @@ describe('affinity awareness multiple connections test suite >', () => {
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED3_CACHE);
                 
-                // Put to inialize partition mapping
-                await cache.put(0, 0);
-                await TestingHelper.waitMapObtained(igniteClient, cache);
-                await TestingHelper.getRequestGridIdx('Put');
+                // Update partition mapping
+                await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
                 await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 1337);
             }).
@@ -184,9 +178,7 @@ describe('affinity awareness multiple connections test suite >', () => {
     });
 
     async function getOrCreateCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
-            setKeyType(keyType).
-            setValueType(valueType);
+        return await AffinityAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
     }
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {

@@ -19,9 +19,26 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
+const IgniteClient = require('@gridgain/thin-client');
+const CacheConfiguration = IgniteClient.CacheConfiguration;
 
 // Helper class for testing affinity awareness feature of @gridgain/thin-client library.
 class AffinityAwarenessTestUtils {
+    static createCacheConfig() {
+        return new CacheConfiguration().
+            setWriteSynchronizationMode(CacheConfiguration.WRITE_SYNCHRONIZATION_MODE.FULL_SYNC).
+            setCacheMode(CacheConfiguration.CACHE_MODE.PARTITIONED);
+    }
+
+    static async getOrCreateCache(igniteClient, keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
+        if (!cacheCfg)
+            cacheCfg = AffinityAwarenessTestUtils.createCacheConfig();
+
+        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
+            setKeyType(keyType).
+            setValueType(valueType);
+    }
+
     static async testAllCacheOperations(cache) {
         let key = 1;
         let key2 = 2;
@@ -110,9 +127,6 @@ class AffinityAwarenessTestUtils {
 
     static async expectOnTheNode(expectedNodeId, req) {
         const actualNodeId = await TestingHelper.getRequestGridIdx(req);
-        if (actualNodeId == -1)
-            console.log('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<================================================ REQUEST: ' + req);
-
         expect(actualNodeId).toEqual(expectedNodeId);
     }
 

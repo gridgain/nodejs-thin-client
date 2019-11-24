@@ -174,7 +174,7 @@ describe('affinity awareness with local peek test suite >', () => {
     }
 
     async function checkLocalPeek(cache, key, value) {
-        await TestingHelper.waitMapObtained(igniteClient, cache);
+        await TestingHelper.ensureStableTopology(igniteClient, cache, key);
 
         const affHint = cache._createAffinityHint(key);
         const bestSocket = await igniteClient._router._chooseConnection(affHint);
@@ -187,7 +187,6 @@ describe('affinity awareness with local peek test suite >', () => {
             else {
                 expect(localPeekVal).toBe(null, 'local peek returned not null value');
             }
-
         }
     }
 

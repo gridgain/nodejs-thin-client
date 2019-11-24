@@ -54,7 +54,7 @@ describe('affinity awareness multiple connections test suite >', () => {
     it('all cache operations with affinity awareness and multiple connections', (done) => {
         Promise.resolve().
             then(async () => {
-                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
                 await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
             }).
             then(done).
@@ -64,15 +64,55 @@ describe('affinity awareness multiple connections test suite >', () => {
     it('all cache operations with affinity awareness and bad affinity', (done) => {
         Promise.resolve().
             then(async () => {
-                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
+                const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
                 await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
             }).
             then(done).
             catch(error => done.fail(error));
     });
+    
+    it('put with affinity awareness and unknown cache', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 42;
+                try {
+                    await cache.put(key, key);
+                }
+                catch (error) {
+                    expect(error.toString()).toContain('Cache does not exist');
+                    return;
+                }
+                fail('Exception was expected');
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    it('get or create null cache with affinity awareness', (done) => {
+        Promise.resolve().
+            then(async () => {
+                try {
+                    await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, null);
+                }
+                catch (error) {
+                    expect(error.toString()).toContain('"name" argument should not be empty');
+                    return;
+                }
+                fail('Exception was expected');
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    async function getOrCreateCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
+        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
+            setKeyType(keyType).
+            setValueType(valueType);
+    }
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
+        return (await igniteClient.getCache(cacheName, cacheCfg)).
             setKeyType(keyType).
             setValueType(valueType);
     }

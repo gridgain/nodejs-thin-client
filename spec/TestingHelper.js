@@ -451,7 +451,7 @@ class TestingHelper {
 
         if (config.debug) {
             nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
-                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=' + 5005 + idx;
+                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=' + (5005 + idx);
         }
 
         const nodeCfg = TestingHelper.getConfigPath(needLogging, idx);

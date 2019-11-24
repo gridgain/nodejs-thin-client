@@ -72,7 +72,8 @@ describe('affinity awareness with checks of connection to cluster test suite >',
             catch(error => done.fail(error));
     });
     
-    it('cache operation routed to new started node', (done) => {
+    // Disabled until this scenario is supported
+    xit('cache operation routed to new started node', (done) => {
         Promise.resolve().
             then(async () => {
                 const newNodeId = SERVER_NUM + 1;

@@ -18,7 +18,7 @@
 
 require('jasmine-expect');
 
-const IgniteClient = require('@gridgain/thin-client');
+const TestingHelper = require('../TestingHelper');
 
 // Helper class for testing affinity awareness feature of @gridgain/thin-client library.
 class AffinityAwarenessTestUtils {
@@ -106,6 +106,158 @@ class AffinityAwarenessTestUtils {
         expect(res).toBe(false);
         expect(res2).toBe(true);
         expect(await cache.get(key)).toEqual(key2);
+    }
+
+    static async expectOnTheNode(expectedNodeId, req) {
+        const actualNodeId = await TestingHelper.getRequestGridIdx(req);
+        if (actualNodeId == -1)
+            console.log('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<================================================ REQUEST: ' + req);
+
+        expect(actualNodeId).toEqual(expectedNodeId);
+    }
+
+    static async testAllCacheOperationsOnTheSameKey(cache, key) {
+        const value1 = 42;
+        const value2 = 100500;
+
+        // Put/Get
+        await cache.put(key, value1);
+        const expectedNodeId = await TestingHelper.getRequestGridIdx('Put');
+
+        expect(await cache.get(key)).toEqual(value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // Replace
+        let res = await cache.replace(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
+        
+        expect(res).toBe(true);
+        expect(await cache.get(key)).toEqual(value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // Clear
+        await cache.clearKey(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+        expect(await cache.get(key)).toBeNull;
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // ContainsKey
+        res = await cache.containsKey(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ContainsKey');
+        expect(res).toBe(false);
+
+        // GetAndPut
+        await cache.put(key, value1);
+        await TestingHelper.getRequestGridIdx('Put');
+
+        res = await cache.getAndPut(key, value2);
+        await TestingHelper.getRequestGridIdx('GetAndPut');
+
+        expect(res).toEqual(value1);
+        expect(await cache.get(key)).toEqual(value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // GetAndPutIfAbsent
+        await cache.clearKey(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+
+        res = await cache.getAndPutIfAbsent(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
+
+        let res2 = await cache.getAndPutIfAbsent(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
+
+        expect(res).toBeNull();
+        expect(res2).toEqual(value1);
+        expect(await cache.get(key)).toEqual(value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // PutIfAbsent
+        await cache.clearKey(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+
+        res = await cache.putIfAbsent(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
+
+        res2 = await cache.putIfAbsent(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
+
+        expect(res).toBe(true);
+        expect(res2).toBe(false);
+        expect(await cache.get(key)).toEqual(value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+
+        // GetAndRemove
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        res = await cache.getAndRemove(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndRemove');
+        
+        expect(res).toEqual(value1);
+        expect(await cache.get(key)).toBeNull();
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+    
+        // GetAndReplace
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        res = await cache.getAndReplace(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndReplace');
+
+        expect(res).toEqual(value1);
+        expect(await cache.get(key)).toEqual(value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+    
+        // RemoveKey
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        await cache.removeKey(key);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveKey');
+
+        expect(await cache.get(key)).toBeNull();
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+    
+        // RemoveIfEquals
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        res = await cache.removeIfEquals(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
+
+        res2 = await cache.removeIfEquals(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
+
+        expect(res).toBe(false);
+        expect(res2).toBe(true);
+        expect(await cache.get(key)).toBeNull();
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+    
+        // Replace
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        await cache.replace(key, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
+
+        expect(await cache.get(key)).toEqual(value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+    
+        // ReplaceIfEquals
+        await cache.put(key, value1);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+
+        res = await cache.replaceIfEquals(key, value2, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
+
+        res2 = await cache.replaceIfEquals(key, value1, value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
+
+        expect(res).toBe(false);
+        expect(res2).toBe(true);
+        expect(await cache.get(key)).toEqual(value2);
+        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     }
 }
 

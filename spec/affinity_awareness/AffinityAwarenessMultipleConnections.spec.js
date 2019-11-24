@@ -25,6 +25,10 @@ const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
 const CUSTOM_AFFINITY_CACHE = 'custom-affinity';
+const PARTITIONED0_CACHE = 'partitioned0';
+const PARTITIONED1_CACHE = 'partitioned1';
+const PARTITIONED3_CACHE = 'partitioned3';
+const REPLICATED_CACHE = 'replicated';
 const SERVER_NUM = 3;
 
 describe('affinity awareness multiple connections test suite >', () => {
@@ -105,6 +109,106 @@ describe('affinity awareness multiple connections test suite >', () => {
             catch(error => done.fail(error));
     });
 
+    it('get or create null cache with affinity awareness', (done) => {
+        Promise.resolve().
+            then(async () => {
+                try {
+                    await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, null);
+                }
+                catch (error) {
+                    expect(error.toString()).toContain('"name" argument should not be empty');
+                    return;
+                }
+                fail('Exception was expected');
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    fit('all cache operations with affinity awareness and partitioned cache with 0 backups', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED0_CACHE);
+                
+                // Put to inialize partition mapping
+                await cache.put(0, 0);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 42);
+                // await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 100500);
+                // await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 1337);
+                // await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 23545);
+                // await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 2017);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    fit('all cache operations with affinity awareness and partitioned cache with 0 backups', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED0_CACHE);
+                
+                // Put to inialize partition mapping
+                await cache.put(0, 0);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 42);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    fit('all cache operations with affinity awareness and partitioned cache with 1 backups', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED1_CACHE);
+                
+                // Put to inialize partition mapping
+                await cache.put(0, 0);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 100500);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    fit('all cache operations with affinity awareness and partitioned cache with 3 backups', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED3_CACHE);
+                
+                // Put to inialize partition mapping
+                await cache.put(0, 0);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 1337);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
+    fit('all cache operations with affinity awareness and replicated cache', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, REPLICATED_CACHE);
+                
+                // Put to inialize partition mapping
+                await cache.put(0, 0);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+                await TestingHelper.getRequestGridIdx('Put');
+
+                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 23545);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
     async function getOrCreateCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
         return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
             setKeyType(keyType).
@@ -117,8 +221,16 @@ describe('affinity awareness multiple connections test suite >', () => {
             setValueType(valueType);
     }
     
+    async function clearCache(name) {
+        await (await igniteClient.getCache(name)).clear();
+    }
+
     async function testSuiteCleanup(done) {
+        await clearCache(CUSTOM_AFFINITY_CACHE);
+        await clearCache(PARTITIONED0_CACHE);
+        await clearCache(PARTITIONED1_CACHE);
+        await clearCache(PARTITIONED3_CACHE);
+        await clearCache(REPLICATED_CACHE);
         await TestingHelper.destroyCache(CACHE_NAME, done);
-        await TestingHelper.destroyCache(CUSTOM_AFFINITY_CACHE, done);
     }
 });

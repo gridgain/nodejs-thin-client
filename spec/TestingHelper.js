@@ -396,7 +396,7 @@ class TestingHelper {
 
     // Waiting for distribution map to be obtained.
     // It has been requested during the "put" operation before calling this function
-    static async waitMapObtained(igniteClient, cache, timeout=1000) {
+    static async waitMapObtained(igniteClient, cache, timeout=3000) {
         let waitOk = await TestingHelper.waitForCondition(() => {
             return igniteClient._router._distributionMap.has(cache._cacheId);
         }, timeout);
@@ -421,7 +421,7 @@ class TestingHelper {
             } while (req != null);
         }
         
-        TestingHelper.logDebug('Request node: ' + res);
+        TestingHelper.logDebug('Request "' + message + ' "node: ' + res);
 
         return res;
     }
@@ -464,7 +464,7 @@ class TestingHelper {
             throw 'Failed to start node: ' + error;
         });
 
-        if (config.debug) {
+        if (config.nodeDebug) {
             srv.stdout.on('data', (data) => {
                 console.log(data.toString());
             });

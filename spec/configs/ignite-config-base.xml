@@ -59,6 +59,29 @@
                         <bean class="org.apache.ignite.internal.processors.affinity.LocalAffinityFunction"/>
                     </property>
                 </bean>
+
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+                    <property name="name" value="partitioned0"/>
+                    <property name="cacheMode" value="PARTITIONED"/>
+                    <property name="backups" value="0"/>
+                </bean>
+
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+                    <property name="name" value="partitioned1"/>
+                    <property name="cacheMode" value="PARTITIONED"/>
+                    <property name="backups" value="1"/>
+                </bean>
+
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+                    <property name="name" value="partitioned3"/>
+                    <property name="cacheMode" value="PARTITIONED"/>
+                    <property name="backups" value="3"/>
+                </bean>
+
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+                    <property name="name" value="replicated"/>
+                    <property name="cacheMode" value="REPLICATED"/>
+                </bean>
             </list>
         </property>
     </bean>

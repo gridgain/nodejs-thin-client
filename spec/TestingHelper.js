@@ -355,7 +355,7 @@ class TestingHelper {
             if (logs.length != 1)
                 throw 'Unexpected number of log files for node ' + idx;
 
-            TestingHelper._logReaders.push(new LogReader(logs[0]));
+            TestingHelper._logReaders[idx-1] = new LogReader(logs[0]);
         }
     }
 

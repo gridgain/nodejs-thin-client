@@ -101,6 +101,36 @@ describe('affinity awareness multiple connections failover test suite >', () => 
             catch(error => done.fail(error));
     });
 
+    // Disabled until implemented
+    xit('cache operation does not fail when node is killed and recovered', (done) => {
+        Promise.resolve().
+            then(async () => {
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                let key = 1;
+
+                // Put to inialize partition mapping
+                await cache.put(key, key);
+                await TestingHelper.waitMapObtained(igniteClient, cache);
+
+                // Get to find out the right node
+                expect(await cache.get(key)).toEqual(key);
+
+                // Killing node for the key
+                const serverId = await TestingHelper.getRequestGridIdx();
+                expect(serverId).not.toEqual(-1, 'Can not find node for a get request');
+
+                TestingHelper.killNodeById(serverId);
+                TestingHelper.startTestServer(true, serverId);
+
+                expect(await cache.get(key)).toEqual(key);
+                const serverId2 = await TestingHelper.getRequestGridIdx();
+
+                expect(serverId2).toEqual(serverId);
+            }).
+            then(done).
+            catch(error => done.fail(error));
+    });
+
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
         return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
             setKeyType(keyType).

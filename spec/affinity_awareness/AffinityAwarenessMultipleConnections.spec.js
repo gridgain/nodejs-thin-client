@@ -69,7 +69,7 @@ describe('affinity awareness multiple connections test suite >', () => {
         Promise.resolve().
             then(async () => {
                 const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                await AffinityAwarenessTestUtils.testRandomNode(igniteClient, cache);
             }).
             then(done).
             catch(error => done.fail(error));
@@ -78,7 +78,7 @@ describe('affinity awareness multiple connections test suite >', () => {
     it('put with affinity awareness and unknown cache', (done) => {
         Promise.resolve().
             then(async () => {
-                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
+                const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, '__unknown_cache_359f72tg');
                 let key = 42;
                 try {
                     await cache.put(key, key);

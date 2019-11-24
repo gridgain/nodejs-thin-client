@@ -19,6 +19,7 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
+const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 

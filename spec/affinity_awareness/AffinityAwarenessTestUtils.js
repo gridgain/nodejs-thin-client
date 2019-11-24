@@ -39,9 +39,28 @@ class AffinityAwarenessTestUtils {
             setValueType(valueType);
     }
 
+    static async testRandomNode(client, cache) {
+        const key = 42;
+
+        await cache.put(key, key);
+        const firstNodeId = await TestingHelper.getRequestGridIdx('Put');
+        expect(firstNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
+
+        for (let i = 0; i < 10; ++i) {
+            await cache.put(key, key);
+            const anotherNodeId = await TestingHelper.getRequestGridIdx('Put');
+            expect(anotherNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
+
+            if (firstNodeId == anotherNodeId)
+                return;
+        }
+
+        throw 'All requests go to the same server when random was expected';
+    }
+
     static async testAllCacheOperations(cache) {
-        let key = 1;
-        let key2 = 2;
+        const key = 1;
+        const key2 = 2;
 
         // Put/Get
         await cache.put(key, key);

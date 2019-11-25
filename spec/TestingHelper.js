@@ -372,7 +372,7 @@ class TestingHelper {
         if (!TestingHelper._servers || idx < 0 || idx > TestingHelper._servers.length)
             throw 'Invalid index';
 
-        const srv = TestingHelper._servers[idx];
+        const srv = TestingHelper._servers[idx - 1];
         if (srv)
             TestingHelper.killNode(srv);
     }

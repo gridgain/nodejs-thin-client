@@ -103,7 +103,7 @@ describe('affinity awareness multiple connections failover test suite >', () => 
     });
 
     // Disabled until implemented
-    xit('cache operation does not fail when node is killed and recovered', (done) => {
+    fit('cache operation does not fail when node is killed and recovered', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
@@ -117,19 +117,28 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing node for the key
-                const serverId = await TestingHelper.getRequestGridIdx('Put');
-                expect(serverId).not.toEqual(-1, 'Can not find node for a put request');
+                const recoveredNodeId = await TestingHelper.getRequestGridIdx('Put');
+                expect(recoveredNodeId).not.toEqual(-1, 'Can not find node for a put request');
 
-                TestingHelper.killNodeById(serverId);
-                TestingHelper.startTestServer(true, serverId);
+                TestingHelper.killNodeById(recoveredNodeId);
+                await TestingHelper.sleep(1000);
+
+                await TestingHelper.startTestServer(true, recoveredNodeId);
                 
                 // Update partition mapping
                 await TestingHelper.ensureStableTopology(igniteClient, cache, key, true);
 
-                expect(await cache.get(key)).toEqual(key);
-                const serverId2 = await TestingHelper.getRequestGridIdx('Get');
+                let keys = 1000;
+                for (let i = 1; i < keys; ++i) {
+                    await cache.put(i * 1433, i);
+                    const serverId = await TestingHelper.getRequestGridIdx('Put');
 
-                expect(serverId2).toEqual(serverId);
+                    // It means request got to the new node.
+                    if (serverId == recoveredNodeId)
+                        return;
+                }
+
+                throw 'Not a single request out of ' + keys + ' got to the recovered node';
             }).
             then(done).
             catch(error => done.fail(error));

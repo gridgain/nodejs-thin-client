@@ -84,7 +84,7 @@ describe('affinity awareness multiple connections test suite >', () => {
                     await cache.put(key, key);
                 }
                 catch (error) {
-                    expect(error.toString()).toContain('Cache does not exist');
+                    expect(error.message).toContain('Cache does not exist');
                     return;
                 }
                 fail('Exception was expected');

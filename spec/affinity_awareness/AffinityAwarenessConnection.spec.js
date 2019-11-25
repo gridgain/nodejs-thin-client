@@ -62,7 +62,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
                     await client.connect(cfg);
                 }
                 catch (error) {
-                    expect(error.stack).toContain('Connection failed');
+                    expect(error.message).toContain('Connection failed');
 
                     return;
                 }

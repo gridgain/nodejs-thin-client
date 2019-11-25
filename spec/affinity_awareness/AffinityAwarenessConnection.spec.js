@@ -46,7 +46,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('client with affinity awareness and bad servers', (done) => {
+    it('client with affinity awareness connecting to unknown servers', (done) => {
         Promise.resolve().
             then(async () => {
                 const badEndpoints = ['127.0.0.1:10900', '127.0.0.1:10901'];

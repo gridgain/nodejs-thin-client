@@ -20,16 +20,21 @@ require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
 const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
+const IgniteClient = require('@gridgain/thin-client');
+const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
 const SERVER_NUM = 3;
 
 describe('affinity awareness with single server test suite >', () => {
+    let igniteClient = null;
+
     beforeAll((done) => {
         Promise.resolve().
             then(async () => {
                 let endpoints = TestingHelper.getEndpoints(SERVER_NUM);
                 await TestingHelper.init(true, SERVER_NUM, false, [endpoints[0]]);
+                igniteClient = TestingHelper.igniteClient;
                 await testSuiteCleanup(done);
             }).
             then(done).

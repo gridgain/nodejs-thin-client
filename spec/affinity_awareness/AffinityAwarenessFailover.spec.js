@@ -96,6 +96,7 @@ describe('affinity awareness multiple connections failover test suite >', () => 
 
                 TestingHelper.killNodeById(serverId);
 
+                await cache.put(key, key);
                 expect(await cache.get(key)).toEqual(key);
             }).
             then(done).
@@ -103,7 +104,7 @@ describe('affinity awareness multiple connections failover test suite >', () => 
     });
 
     // Disabled until implemented
-    fit('cache operation does not fail when node is killed and recovered', (done) => {
+    it('cache operation does not fail when node is killed and recovered', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);

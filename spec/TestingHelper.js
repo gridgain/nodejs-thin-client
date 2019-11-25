@@ -485,14 +485,15 @@ class TestingHelper {
             throw 'Failed to start node: ' + error;
         });
 
-        if (config.nodeDebug) {
-            srv.stdout.on('data', (data) => {
+        srv.stdout.on('data', (data) => {
+            if (config.nodeDebug)
                 console.log(data.toString());
-            });
-            srv.stderr.on('data', (data) => {
+        });
+        
+        srv.stderr.on('data', (data) => {
+            if (config.nodeDebug)
                 console.error(data.toString());
-            });
-        }
+        });
 
         const started = await TestingHelper.waitForCondition(async () => 
             TestingHelper.tryConnectClient(idx), 10000);

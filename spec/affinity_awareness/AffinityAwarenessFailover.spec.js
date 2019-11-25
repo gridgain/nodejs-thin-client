@@ -103,7 +103,6 @@ describe('affinity awareness multiple connections failover test suite >', () => 
             catch(error => done.fail(error));
     });
 
-    // Disabled until implemented
     it('cache operation does not fail when node is killed and recovered', (done) => {
         Promise.resolve().
             then(async () => {
@@ -123,7 +122,6 @@ describe('affinity awareness multiple connections failover test suite >', () => 
 
                 TestingHelper.killNodeById(recoveredNodeId);
                 await TestingHelper.sleep(1000);
-
                 await TestingHelper.startTestServer(true, recoveredNodeId);
                 
                 // Update partition mapping

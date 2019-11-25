@@ -69,7 +69,7 @@ describe('affinity awareness multiple connections test suite >', () => {
         Promise.resolve().
             then(async () => {
                 const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
-                await AffinityAwarenessTestUtils.testRandomNode(igniteClient, cache);
+                await AffinityAwarenessTestUtils.testRandomNode(cache);
             }).
             then(done).
             catch(error => done.fail(error));

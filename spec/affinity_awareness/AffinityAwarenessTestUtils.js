@@ -39,14 +39,14 @@ class AffinityAwarenessTestUtils {
             setValueType(valueType);
     }
 
-    static async testRandomNode(client, cache) {
+    static async testRandomNode(cache) {
         const key = 42;
 
         await cache.put(key, key);
         const firstNodeId = await TestingHelper.getRequestGridIdx('Put');
         expect(firstNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
 
-        for (let i = 0; i < 10; ++i) {
+        for (let i = 0; i < 20; ++i) {
             await cache.put(key, key);
             const anotherNodeId = await TestingHelper.getRequestGridIdx('Put');
             expect(anotherNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
@@ -56,6 +56,24 @@ class AffinityAwarenessTestUtils {
         }
 
         throw 'All requests go to the same server when random was expected';
+    }
+
+    static async testSameNode(cache) {
+        let key = 1337;
+
+        await cache.put(key, key);
+        const firstNodeId = await TestingHelper.getRequestGridIdx('Put');
+        expect(firstNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
+
+        for (let i = 0; i < 20; ++i) {
+            key = key + 1337;
+            await cache.put(key, key);
+            const anotherNodeId = await TestingHelper.getRequestGridIdx('Put');
+            expect(anotherNodeId).not.toEqual(-1, 'Can not locate node for an operation.');
+
+            if (firstNodeId != anotherNodeId)
+                throw 'All requests expected to go to the same server';
+        }
     }
 
     static async testAllCacheOperations(cache) {
@@ -110,18 +128,18 @@ class AffinityAwarenessTestUtils {
         res = await cache.getAndRemove(key);
         expect(res).toEqual(key);
         expect(await cache.get(key)).toBeNull();
-    
+
         // GetAndReplace
         await cache.put(key, key);
         res = await cache.getAndReplace(key, key2);
         expect(res).toEqual(key);
         expect(await cache.get(key)).toEqual(key2);
-    
+
         // RemoveKey
         await cache.put(key, key);
         await cache.removeKey(key);
         expect(await cache.get(key)).toBeNull();
-    
+
         // RemoveIfEquals
         await cache.put(key, key);
         res = await cache.removeIfEquals(key, key2);
@@ -129,12 +147,12 @@ class AffinityAwarenessTestUtils {
         expect(res).toBe(false);
         expect(res2).toBe(true);
         expect(await cache.get(key)).toBeNull();
-    
+
         // Replace
         await cache.put(key, key);
         await cache.replace(key, key2);
         expect(await cache.get(key)).toEqual(key2);
-    
+
         // ReplaceIfEquals
         await cache.put(key, key);
         res = await cache.replaceIfEquals(key, key2, key2);

@@ -33,7 +33,7 @@ describe('affinity awareness with single server test suite >', () => {
         Promise.resolve().
             then(async () => {
                 let endpoints = TestingHelper.getEndpoints(SERVER_NUM);
-                await TestingHelper.init(true, SERVER_NUM, false, [endpoints[0]]);
+                await TestingHelper.init(true, SERVER_NUM, true, [endpoints[0]]);
                 igniteClient = TestingHelper.igniteClient;
                 await testSuiteCleanup(done);
             }).
@@ -55,7 +55,7 @@ describe('affinity awareness with single server test suite >', () => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                await AffinityAwarenessTestUtils.testSameNode(cache);
             }).
             then(done).
             catch(error => done.fail(error));

@@ -342,7 +342,7 @@ class TestingHelper {
             TestingHelper._servers = [];
         
         if (!TestingHelper._logReaders)
-            TestingHelper._logReaders = [];
+            TestingHelper._logReaders = new Map();
 
         TestingHelper._servers.push(await TestingHelper._startNode(needLogging, idx));
 
@@ -352,9 +352,9 @@ class TestingHelper {
 
         if (needLogging) {
             if (logs.length != 1)
-                throw 'Unexpected number of log files for node ' + idx;
+                throw 'Unexpected number of log files for node ' + idx + ': ' + logs.length;
 
-            TestingHelper._logReaders[idx-1] = new LogReader(logs[0]);
+            TestingHelper._logReaders.set(idx, new LogReader(logs[0]));
         }
     }
 
@@ -425,23 +425,34 @@ class TestingHelper {
             throw 'getting of partition map timed out';
     }
 
-    static readLogFile(idx) {
-        return TestingHelper._logReaders[idx].nextRequest();
+    static async readLogFile(idx) {
+        const reader = TestingHelper._logReaders.get(idx);
+        if (!reader) {
+            TestingHelper.logDebug('WARNING: Reader is null');
+            return null;
+        }
+
+        return await reader.nextRequest();
     }
 
     static async getRequestGridIdx(message='Get') {
+        if (!TestingHelper._logReaders)
+            throw 'Logs are not enabled for the cluster';
+
         let res = -1
-        for(let i = 0; i < TestingHelper._logReaders.length; ++i) {
-            const logReader = TestingHelper._logReaders[i];
+        for(let [id, logReader] of TestingHelper._logReaders) {
+            if (!logReader)
+                continue;
+
             let req = null;
             do {
                 req = await logReader.nextRequest();
-                TestingHelper.logDebug('Node' + (i+1) +': Got ' + req + ', looking for ' + message);
+                TestingHelper.logDebug('Node' + id +': Got ' + req + ', looking for ' + message);
                 if (req === message)
-                    res = i + 1;
+                    res = id;
             } while (req != null);
         }
-        
+
         TestingHelper.logDebug('Request "' + message + '" node: ' + res);
 
         return res;
@@ -456,7 +467,6 @@ class TestingHelper {
     }
 
     static clearLogs(idx) {
-        const fs = require('fs');
         for (const f of TestingHelper.getLogFiles(idx))
             fs.unlinkSync(f);
     }

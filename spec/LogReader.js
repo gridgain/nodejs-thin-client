@@ -22,47 +22,61 @@ const readline = require('readline');
 // Helper class for working with GG logs
 class LogReader {
     constructor(file) {
-        this._currentReq = null;
         this._lastLine = 0;
         this._file = file;
     }
 
-    get currentReq() {
-        return this._currentReq;
-    }
-
     async nextRequest() {
         let stream = null;
-        try {
+        let readInterface = null;
+
+        let cleanUp = () => {
+            if (stream) {
+                stream.close();
+                stream = null;
+            }
+
+            if (readInterface) {
+                readInterface.close();
+                readInterface = null;
+            }
+        }
+
+        return await new Promise((resolve) => {
             stream = fs.createReadStream(this._file);
-            let readInterface = readline.createInterface({
+            readInterface = readline.createInterface({
                 input: stream,
                 crlfDelay: Infinity
             });
-    
+
+            let resolved = false;
+
             let i = -1;
-            for await (const line of readInterface) {
+            readInterface.on('line', (line) => {
+                if (resolved)
+                    return;
+
                 ++i;
                 if (i <= this._lastLine)
-                    continue;
-                else
-                    this._lastLine = i;
+                    return;
+
+                this._lastLine = i;
 
                 const res = line.match(/Client request received .*?req=org.apache.ignite.internal.processors.platform.client.cache.ClientCache([a-zA-Z]+)Request@/);
                 if (res) {
-                    this._currentReq = res[1].normalize();
-                    return this._currentReq;
+                    resolved = true;
+                    cleanUp();
+                    resolve(res[1].normalize());
                 }
-            }
-            return null;
-        }
-        catch (_error) {
-            return null;
-        }
-        finally {
-            if (stream)
-                stream.close();
-        }
+            });
+
+            readInterface.on('close', () => {
+                cleanUp();
+                if (!resolved)
+                    resolve(null);
+            });
+        })
+        .catch((_err) => {});
     }
 }
 

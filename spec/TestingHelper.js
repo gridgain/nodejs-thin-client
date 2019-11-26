@@ -19,9 +19,13 @@
 require('jasmine-expect');
 const JasmineReporters = require('jasmine-reporters');
 
+const psTree = require('ps-tree');
 const Util = require('util');
-const exec = require('child_process').exec;
+const path = require('path');
+const fs = require('fs');
+const child_process = require('child_process');
 const config = require('./config');
+const LogReader = require('./LogReader');
 const IgniteClient = require('@gridgain/thin-client');
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const Errors = IgniteClient.Errors;
@@ -181,21 +185,50 @@ class TestingHelper {
         return arrayValues;
     }
 
+    // Initializes only cluster
+    static async initClusterOnly(serversNum = 1, needLogging = false) {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
+        
+        await TestingHelper.startTestServers(needLogging, serversNum);
+    }
+
+    // Create test client instance
+    static makeClient() {
+        const client = new IgniteClient();
+        client.setDebug(config.debug);
+        return client;
+    }
+
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness) {
+    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, needLogging = false, endpoints) {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
 
-        TestingHelper._igniteClient = new IgniteClient();
-        TestingHelper._igniteClient.setDebug(config.debug);
-        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...config.endpoints).
+        if (!endpoints)
+            endpoints = TestingHelper.getEndpoints(serversNum);
+
+        await TestingHelper.startTestServers(needLogging, serversNum);
+
+        TestingHelper._igniteClient = TestingHelper.makeClient();
+        await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...endpoints).
             setConnectionOptions(false, null, affinityAwareness));
     }
 
     // Cleans up testing environment.
     // Should be called from any test suite afterAll method.
     static async cleanUp() {
-        await TestingHelper.igniteClient.disconnect();
+        try {
+            if (TestingHelper._igniteClient) {
+                await TestingHelper._igniteClient.disconnect();
+                delete TestingHelper._igniteClient;
+            }
+            
+            if (TestingHelper._logReaders)
+                delete TestingHelper._logReaders;
+        }
+        finally {
+            TestingHelper.stopTestServers();
+        }
     }
 
     static get igniteClient() {
@@ -211,9 +244,281 @@ class TestingHelper {
         }
     }
 
+    static getEndpoints(serversNum) {
+        if (serversNum < 1)
+            throw 'Wrong number of nodes: ' + serversNum;
+
+        let res = [];
+        for (let i = 1; i < serversNum + 1; ++i)
+            res.push('127.0.0.1:' + (10800 + i));
+
+        return res;
+    }
+
+    static isWindows() {
+        return process.platform === 'win32';
+    }
+
+    static getNodeRunner() {
+        if (!config.igniteHome)
+            throw 'Can not start node: IGNITE_HOME is not set';
+
+        const ext = TestingHelper.isWindows() ? '.bat' : '.sh';
+        const runner = path.join(config.igniteHome, 'bin', 'ignite' + ext);
+        if (!fs.existsSync(runner))
+            throw 'Can not find ' + runner + '. Please, check your IGNITE_HOME environment variable';
+        
+        return runner;
+    }
+
+    static getConfigPath(needLogging, idx = 1) {
+        if (!needLogging)
+            return path.join(__dirname, 'configs', 'ignite-config-default.xml');
+
+        return path.join(__dirname, 'configs', Util.format('ignite-config-%d.xml', idx));
+    }
+    
+    static async sleep(milliseconds) {
+        return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    static async waitForCondition(cond, timeout) {
+        const startTime = Date.now();
+
+        do {
+            const ok = await cond();
+            if (ok)
+                return true;
+            await TestingHelper.sleep(100);
+        } while ((Date.now() - startTime) < timeout);
+
+        return await cond();
+    }
+
+    static async waitForConditionOrThrow(cond, timeout) {
+        const startTime = Date.now();
+
+        while (!await cond()) {
+            if (Date.now() - startTime > timeout) {
+                throw 'Failed to achive condition within timeout ' + timeout;
+            }
+
+            await TestingHelper.sleep(100);
+        }
+    }
+
+    static async tryConnectClient(idx = 1, debug = false) {
+        const endPoint = Util.format('127.0.0.1:%d', 10800 + idx);
+
+        TestingHelper.logDebug('Checking endpoint: ' + endPoint);
+
+        let cli = new IgniteClient();
+        cli.setDebug(debug);
+
+        return await cli.connect(new IgniteClientConfiguration(endPoint).
+            setConnectionOptions(false, null, false)).
+            then(() => {
+                TestingHelper.logDebug('Successfully connected');
+                cli.disconnect();
+                return true;
+            }).
+            catch(error => {
+                TestingHelper.logDebug('Error while connecting: ' + error.toString());
+                return false;
+            });
+    }
+
+    static async startTestServers(needLogging, serversNum) {
+        TestingHelper.logDebug('Starting ' + serversNum + ' node[s]');
+        if (serversNum < 0)
+            throw 'Wrong number of servers to start: ' + serversNum;
+
+        for (let i = 1; i < serversNum + 1; ++i)
+            await TestingHelper.startTestServer(needLogging, i);
+    }
+
+    static async startTestServer(needLogging, idx) {
+        if (!TestingHelper._servers)
+            TestingHelper._servers = [];
+        
+        if (!TestingHelper._logReaders)
+            TestingHelper._logReaders = new Map();
+
+        TestingHelper._servers.push(await TestingHelper._startNode(needLogging, idx));
+
+        const logs = TestingHelper.getLogFiles(idx);
+        if (!needLogging && logs.length > 0)
+            throw 'Unexpected log file for node ' + idx;
+
+        if (needLogging) {
+            if (logs.length != 1)
+                throw 'Unexpected number of log files for node ' + idx + ': ' + logs.length;
+
+            TestingHelper._logReaders.set(idx, new LogReader(logs[0]));
+        }
+    }
+
+    static stopTestServers() {
+        if (TestingHelper._servers) {
+            for (let server of TestingHelper._servers) {
+                this.killNode(server);
+            }
+
+            delete TestingHelper._servers;
+        }
+    }
+
+    static killNodeById(idx) {
+        if (!TestingHelper._servers || idx < 0 || idx > TestingHelper._servers.length)
+            throw 'Invalid index';
+
+        const srv = TestingHelper._servers[idx - 1];
+        if (srv)
+            TestingHelper.killNode(srv);
+    }
+
+    static killNode(proc) {
+        if (TestingHelper.isWindows()) {
+            child_process.spawnSync('taskkill', ['/F', '/T', '/PID', proc.pid.toString()])
+        }
+        psTree(proc.pid, function (err, children) {
+            children.map((p) => {
+                try {
+                    process.kill(p.PID, 'SIGKILL');
+                }
+                catch (_error) {
+                    // No-op.
+                }
+            });
+          });
+    }
+
+    // Make sure that topology is stable, version won't change and partition map is up-to-date for the given cache.
+    static async ensureStableTopology(igniteClient, cache, key = 1, skipLogs=false, timeout=3000) {
+        let oldTopVer = igniteClient._router._affinityTopologyVer;
+        
+        await cache.get(key);
+
+        let newTopVer = igniteClient._router._affinityTopologyVer;
+
+        while (newTopVer != oldTopVer) {
+            oldTopVer = newTopVer;
+            await cache.get(key);
+            newTopVer = igniteClient._router._affinityTopologyVer;
+        }
+
+        // Now when topology stopped changing, let's ensure we received distribution map.
+        await TestingHelper._waitMapObtained(igniteClient, cache, timeout)
+
+        if (skipLogs)
+            await TestingHelper.getRequestGridIdx();
+    }
+
+    // Waiting for distribution map to be obtained.
+    // It has been requested during the "put" operation before calling this function
+    static async _waitMapObtained(igniteClient, cache, timeout=3000) {
+        let waitOk = await TestingHelper.waitForCondition(() => {
+            return igniteClient._router._distributionMap.has(cache._cacheId);
+        }, timeout);
+
+        if (!waitOk)
+            throw 'getting of partition map timed out';
+    }
+
+    static async readLogFile(idx) {
+        const reader = TestingHelper._logReaders.get(idx);
+        if (!reader) {
+            TestingHelper.logDebug('WARNING: Reader is null');
+            return null;
+        }
+
+        return await reader.nextRequest();
+    }
+
+    static async getRequestGridIdx(message='Get') {
+        if (!TestingHelper._logReaders)
+            throw 'Logs are not enabled for the cluster';
+
+        let res = -1
+        for(let [id, logReader] of TestingHelper._logReaders) {
+            if (!logReader)
+                continue;
+
+            let req = null;
+            do {
+                req = await logReader.nextRequest();
+                TestingHelper.logDebug('Node' + id +': Got ' + req + ', looking for ' + message);
+                if (req === message)
+                    res = id;
+            } while (req != null);
+        }
+
+        TestingHelper.logDebug('Request "' + message + '" node: ' + res);
+
+        return res;
+    }
+
+    static getLogFiles(idx) {
+        const glob = require('glob');
+        // glob package only works with slashes so no need in 'path' here.
+        const logsPattern = Util.format('./logs/ignite-log-%d*.txt', idx);
+        const res = glob.sync(logsPattern);
+        return res;
+    }
+
+    static clearLogs(idx) {
+        for (const f of TestingHelper.getLogFiles(idx))
+            fs.unlinkSync(f);
+    }
+
+    static async _startNode(needLogging, idx = 1) {
+        TestingHelper.clearLogs(idx);
+
+        const runner = TestingHelper.getNodeRunner();
+
+        let nodeEnv = {};
+        for (const ev in process.env)
+            nodeEnv[ev] = process.env[ev];
+
+        if (config.debug) {
+            nodeEnv['JVM_OPTS'] = '-Djava.net.preferIPv4Stack=true -Xdebug -Xnoagent -Djava.compiler=NONE \
+                                   -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=' + (5005 + idx);
+        }
+
+        const nodeCfg = TestingHelper.getConfigPath(needLogging, idx);
+        TestingHelper.logDebug('Trying to start node using following command: ' + runner + ' ' + nodeCfg);
+
+        const srv = child_process.spawn(runner, [nodeCfg], {env: nodeEnv});
+
+        srv.on('error', (error) => {
+            jasmine.fail('Failed to start node: ' + error);
+            throw 'Failed to start node: ' + error;
+        });
+
+        srv.stdout.on('data', (data) => {
+            if (config.nodeDebug)
+                console.log(data.toString());
+        });
+        
+        srv.stderr.on('data', (data) => {
+            if (config.nodeDebug)
+                console.error(data.toString());
+        });
+
+        const started = await TestingHelper.waitForCondition(async () => 
+            TestingHelper.tryConnectClient(idx), 10000);
+
+        if (!started) {
+            TestingHelper.killNode(srv);
+            throw 'Failed to start Node: timeout while trying to connect';
+        }
+
+        return srv
+    }
+
     static executeExample(name, outputChecker) {
         return new Promise((resolve, reject) => {
-                exec('node ' + name, (error, stdout, stderr) => {
+                child_process.exec('node ' + name, (error, stdout, stderr) => {
                     TestingHelper.logDebug(stdout);
                     resolve(stdout);
                 })

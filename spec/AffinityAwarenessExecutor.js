@@ -25,7 +25,7 @@ jasmine.loadConfig({
 	    "query/**/*[sS]pec.js"
     ],
     "random": false,
-    // We want to stop immediately if there are not enough nodes in cluster, for example
-    "stopOnSpecFailure": true
+    // If this is set to true, we won't clean up environment, i.e. stop nodes
+    "stopOnSpecFailure": false
 });
 jasmine.execute();

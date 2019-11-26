@@ -59,14 +59,14 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 expect(await cache.get(key)).toEqual(key);
 
                 // Killing nodes
-                TestingHelper.stopTestServers();
+                await TestingHelper.stopTestServers();
 
                 // Get
                 try {
                     await cache.put(key, key);
                 }
                 catch (error) {
-                    expect(error.stack).toContain('Cluster is unavailable');
+                    expect(error.message).toMatch(/(.*Cluster is unavailable*.)|(.*client is not in an appropriate state.*)/);
 
                     return;
                 }
@@ -94,7 +94,7 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 const serverId = await TestingHelper.getRequestGridIdx('Put');
                 expect(serverId).not.toEqual(-1, 'Can not find node for a put request');
 
-                TestingHelper.killNodeById(serverId);
+                await TestingHelper.killNodeByIdAndWait(serverId);
 
                 await cache.put(key, key);
                 expect(await cache.get(key)).toEqual(key);
@@ -120,7 +120,7 @@ describe('affinity awareness multiple connections failover test suite >', () => 
                 const recoveredNodeId = await TestingHelper.getRequestGridIdx('Put');
                 expect(recoveredNodeId).not.toEqual(-1, 'Can not find node for a put request');
 
-                TestingHelper.killNodeById(recoveredNodeId);
+                await TestingHelper.killNodeByIdAndWait(recoveredNodeId);
                 await TestingHelper.sleep(1000);
                 await TestingHelper.startTestServer(true, recoveredNodeId);
                 

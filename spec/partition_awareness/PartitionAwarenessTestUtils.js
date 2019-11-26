@@ -22,8 +22,8 @@ const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
 const CacheConfiguration = IgniteClient.CacheConfiguration;
 
-// Helper class for testing affinity awareness feature of @gridgain/thin-client library.
-class AffinityAwarenessTestUtils {
+// Helper class for testing partition awareness feature of @gridgain/thin-client library.
+class PartitionAwarenessTestUtils {
     static createCacheConfig() {
         return new CacheConfiguration().
             setWriteSynchronizationMode(CacheConfiguration.WRITE_SYNCHRONIZATION_MODE.FULL_SYNC).
@@ -32,7 +32,7 @@ class AffinityAwarenessTestUtils {
 
     static async getOrCreateCache(igniteClient, keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
         if (!cacheCfg)
-            cacheCfg = AffinityAwarenessTestUtils.createCacheConfig();
+            cacheCfg = PartitionAwarenessTestUtils.createCacheConfig();
 
         return (await igniteClient.getOrCreateCache(cacheName, cacheCfg)).
             setKeyType(keyType).
@@ -176,25 +176,25 @@ class AffinityAwarenessTestUtils {
         const expectedNodeId = await TestingHelper.getRequestGridIdx('Put');
 
         expect(await cache.get(key)).toEqual(value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // Replace
         let res = await cache.replace(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
         
         expect(res).toBe(true);
         expect(await cache.get(key)).toEqual(value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // Clear
         await cache.clearKey(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
         expect(await cache.get(key)).toBeNull;
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // ContainsKey
         res = await cache.containsKey(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ContainsKey');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ContainsKey');
         expect(res).toBe(false);
 
         // GetAndPut
@@ -206,110 +206,110 @@ class AffinityAwarenessTestUtils {
 
         expect(res).toEqual(value1);
         expect(await cache.get(key)).toEqual(value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // GetAndPutIfAbsent
         await cache.clearKey(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
 
         res = await cache.getAndPutIfAbsent(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
 
         let res2 = await cache.getAndPutIfAbsent(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndPutIfAbsent');
 
         expect(res).toBeNull();
         expect(res2).toEqual(value1);
         expect(await cache.get(key)).toEqual(value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // PutIfAbsent
         await cache.clearKey(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ClearKey');
 
         res = await cache.putIfAbsent(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
 
         res2 = await cache.putIfAbsent(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'PutIfAbsent');
 
         expect(res).toBe(true);
         expect(res2).toBe(false);
         expect(await cache.get(key)).toEqual(value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
 
         // GetAndRemove
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         res = await cache.getAndRemove(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndRemove');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndRemove');
         
         expect(res).toEqual(value1);
         expect(await cache.get(key)).toBeNull();
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     
         // GetAndReplace
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         res = await cache.getAndReplace(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndReplace');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'GetAndReplace');
 
         expect(res).toEqual(value1);
         expect(await cache.get(key)).toEqual(value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     
         // RemoveKey
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         await cache.removeKey(key);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveKey');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveKey');
 
         expect(await cache.get(key)).toBeNull();
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     
         // RemoveIfEquals
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         res = await cache.removeIfEquals(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
 
         res2 = await cache.removeIfEquals(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'RemoveIfEquals');
 
         expect(res).toBe(false);
         expect(res2).toBe(true);
         expect(await cache.get(key)).toBeNull();
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     
         // Replace
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         await cache.replace(key, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Replace');
 
         expect(await cache.get(key)).toEqual(value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     
         // ReplaceIfEquals
         await cache.put(key, value1);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Put');
 
         res = await cache.replaceIfEquals(key, value2, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
 
         res2 = await cache.replaceIfEquals(key, value1, value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'ReplaceIfEquals');
 
         expect(res).toBe(false);
         expect(res2).toBe(true);
         expect(await cache.get(key)).toEqual(value2);
-        await AffinityAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
+        await PartitionAwarenessTestUtils.expectOnTheNode(expectedNodeId, 'Get');
     }
 }
 
-module.exports = AffinityAwarenessTestUtils;
+module.exports = PartitionAwarenessTestUtils;

@@ -19,14 +19,14 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
+const PartitionAwarenessTestUtils = require('./PartitionAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 
 const CACHE_NAME = '__test_cache';
 const SERVER_NUM = 3;
 
-describe('affinity awareness with single server test suite >', () => {
+describe('partition awareness with single server test suite >', () => {
     let igniteClient = null;
 
     beforeAll((done) => {
@@ -51,18 +51,18 @@ describe('affinity awareness with single server test suite >', () => {
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('all cache operations with affinity aware client and single connection', (done) => {
+    it('all cache operations with partition aware client and single connection', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
-                await AffinityAwarenessTestUtils.testSameNode(cache);
+                await PartitionAwarenessTestUtils.testSameNode(cache);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return await AffinityAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
+        return await PartitionAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
     }
 
     async function testSuiteCleanup(done) {

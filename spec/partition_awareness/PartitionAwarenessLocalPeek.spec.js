@@ -28,18 +28,18 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness with local peek test suite >', () => {
+describe('partition awareness with local peek test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
 
     beforeAll((done) => {
         Promise.resolve().
             then(async () => {
-                // Pass "true" to turn on Affinity Awareness even
-                // if GRIDGAIN_CLIENT_AFFINITY_AWARENESS env var is not passed
+                // Pass "true" to turn on Partition Awareness even
+                // if GRIDGAIN_CLIENT_PARTITION_AWARENESS env var is not passed
                 await TestingHelper.init(true, 3);
                 igniteClient = TestingHelper.igniteClient;
-                await checkAffinityAwarenessActive(done);
+                await checkPartitionAwarenessActive(done);
                 await testSuiteCleanup(done);
             }).
             then(done).
@@ -197,12 +197,12 @@ describe('affinity awareness with local peek test suite >', () => {
             setKeyConfigurations(keyCfg);
     }
 
-    async function checkAffinityAwarenessActive(done) {
+    async function checkPartitionAwarenessActive(done) {
         await TestingHelper.waitForConditionOrThrow(() => {
-            return igniteClient._router._affinityAwarenessActive;
+            return igniteClient._router._partitionAwarenessActive;
         }, 2000).
         then(done).
-        catch(_e => done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it"));
+        catch(_e => done.fail("Partition Awareness hasn't been activated. Probably, the cluster doesn't support it"));
     }
 
     async function testSuiteCleanup(done) {

@@ -18,11 +18,8 @@
 
 require('jasmine-expect');
 
-const Util = require('util');
-const config = require('../config');
 const TestingHelper = require('../TestingHelper');
 const IgniteClient = require('@gridgain/thin-client');
-const Errors = IgniteClient.Errors;
 const CacheConfiguration = IgniteClient.CacheConfiguration;
 const CacheKeyConfiguration = IgniteClient.CacheKeyConfiguration;
 const ObjectType = IgniteClient.ObjectType;
@@ -31,17 +28,16 @@ const ComplexObjectType = IgniteClient.ComplexObjectType;
 
 const CACHE_NAME = '__test_cache';
 
-describe('affinity awareness feature test suite >', () => {
+describe('affinity awareness with local peek test suite >', () => {
     let igniteClient = null;
     const affinityKeyField = 'affKeyField';
 
     beforeAll((done) => {
         Promise.resolve().
             then(async () => {
-                checkEndpointsList(done);
                 // Pass "true" to turn on Affinity Awareness even
-                // if APACHE_IGNITE_CLIENT_AFFINITY_AWARENESS env var is not passed
-                await TestingHelper.init(true);
+                // if GRIDGAIN_CLIENT_AFFINITY_AWARENESS env var is not passed
+                await TestingHelper.init(true, 3);
                 igniteClient = TestingHelper.igniteClient;
                 await checkAffinityAwarenessActive(done);
                 await testSuiteCleanup(done);
@@ -178,18 +174,7 @@ describe('affinity awareness feature test suite >', () => {
     }
 
     async function checkLocalPeek(cache, key, value) {
-        const startTime = Date.now();
-
-        // Waiting for distribution map to be obtained.
-        // It has been requested during the "put" operation before calling this function
-        while (!igniteClient._router._distributionMap.has(cache._cacheId)) {
-            if (Date.now() - startTime > 1000) {
-                throw 'getting of partition map timed out';
-                return;
-            }
-
-            await sleep(10);
-        }
+        await TestingHelper.ensureStableTopology(igniteClient, cache, key);
 
         const affHint = cache._createAffinityHint(key);
         const bestSocket = await igniteClient._router._chooseConnection(affHint);
@@ -202,7 +187,6 @@ describe('affinity awareness feature test suite >', () => {
             else {
                 expect(localPeekVal).toBe(null, 'local peek returned not null value');
             }
-
         }
     }
 
@@ -213,31 +197,12 @@ describe('affinity awareness feature test suite >', () => {
             setKeyConfigurations(keyCfg);
     }
 
-    function checkEndpointsList(done) {
-        if (config.endpoints.length < 2) {
-            // We should stop here and not continue running this test suite
-            // but Jasmine doesn't support such behavior for some reason
-            done.fail('Affinity Awareness feature requires at least two nodes in cluster');
-            return;
-        }
-    }
-
     async function checkAffinityAwarenessActive(done) {
-        const startTime = Date.now();
-        while (!igniteClient._router._affinityAwarenessActive) {
-            if (Date.now() - startTime > 2000) {
-                // We should stop here and not continue running this test suite
-                // but Jasmine doesn't support such behavior for some reason
-                done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it");
-                return;
-            }
-
-            await sleep(100);
-        }
-    }
-
-    async function sleep(milliseconds) {
-        return new Promise(resolve => setTimeout(resolve, milliseconds));
+        await TestingHelper.waitForConditionOrThrow(() => {
+            return igniteClient._router._affinityAwarenessActive;
+        }, 2000).
+        then(done).
+        catch(_e => done.fail("Affinity Awareness hasn't been activated. Probably, the cluster doesn't support it"));
     }
 
     async function testSuiteCleanup(done) {

@@ -46,8 +46,9 @@ Follow the [Installation instructions](#installation).
 
 1. Run GridGain server locally or remotely with default configuration.
 2. Set the environment variable:
-    - **APACHE_IGNITE_CLIENT_ENDPOINTS** - comma separated list of GridGain node endpoints.
-    - **APACHE_IGNITE_CLIENT_DEBUG** - (optional) if *true*, tests will display additional output (default: *false*).
+    - **IGNITE_HOME** - Home of the GridGain. It is needed for tests to know how to start testing nodes.
+    - **GRIDGAIN_CLIENT_DEBUG** - (optional) if *true*, tests will display additional output for clients (default: *false*).
+    - **GRIDGAIN_SERVER_DEBUG** - (optional) if *true*, tests will display additional output for servers (default: *false*).
 3. Alternatively, instead of the environment variables setting, you can directly specify the values of the corresponding variables in [nodejs-thin-client/spec/config.js](./spec/config.js) file.
 4. Run the tests:
 

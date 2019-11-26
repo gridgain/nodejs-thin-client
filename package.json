@@ -36,6 +36,7 @@
     "jasmine": "latest",
     "jasmine-expect": "latest",
     "jasmine-reporters": "latest",
-    "ps-tree": "latest"
+    "ps-tree": "latest",
+    "process-exists": "latest"
   }
 }

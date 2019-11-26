@@ -227,7 +227,7 @@ class TestingHelper {
                 delete TestingHelper._logReaders;
         }
         finally {
-            TestingHelper.stopTestServers();
+            await TestingHelper.stopTestServers();
         }
     }
 
@@ -358,23 +358,34 @@ class TestingHelper {
         }
     }
 
-    static stopTestServers() {
+    static async stopTestServers() {
         if (TestingHelper._servers) {
             for (let server of TestingHelper._servers) {
-                this.killNode(server);
+                await TestingHelper.killNodeAndWait(server);
             }
 
             delete TestingHelper._servers;
         }
     }
 
-    static killNodeById(idx) {
+    static async killNodeByIdAndWait(idx) {
         if (!TestingHelper._servers || idx < 0 || idx > TestingHelper._servers.length)
             throw 'Invalid index';
 
         const srv = TestingHelper._servers[idx - 1];
         if (srv)
-            TestingHelper.killNode(srv);
+            await TestingHelper.killNodeAndWait(srv);
+    }
+
+    static async killNodeAndWait(proc) {
+        const ProcessExists = require('process-exists');
+
+        const pid = proc.pid;
+        TestingHelper.killNode(proc);
+
+        await TestingHelper.waitForConditionOrThrow(async () => {
+            return !(await ProcessExists(pid));
+        }, 5000);
     }
 
     static killNode(proc) {
@@ -394,7 +405,7 @@ class TestingHelper {
     }
 
     // Make sure that topology is stable, version won't change and partition map is up-to-date for the given cache.
-    static async ensureStableTopology(igniteClient, cache, key = 1, skipLogs=false, timeout=3000) {
+    static async ensureStableTopology(igniteClient, cache, key = 1, skipLogs=false, timeout=5000) {
         let oldTopVer = igniteClient._router._affinityTopologyVer;
         
         await cache.get(key);
@@ -509,7 +520,7 @@ class TestingHelper {
             TestingHelper.tryConnectClient(idx), 10000);
 
         if (!started) {
-            TestingHelper.killNode(srv);
+            await TestingHelper.killNodeAndWait(srv);
             throw 'Failed to start Node: timeout while trying to connect';
         }
 

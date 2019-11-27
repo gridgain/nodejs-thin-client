@@ -19,7 +19,7 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
+const PartitionAwarenessTestUtils = require('./PartitionAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
@@ -27,7 +27,7 @@ const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
 const CACHE_NAME = '__test_cache';
 const SERVER_NUM = 3;
 
-describe('affinity awareness with checks of connection to cluster test suite >', () => {
+describe('partition awareness with checks of connection to cluster test suite >', () => {
     beforeEach((done) => {
         Promise.resolve().
             then(async () => {
@@ -46,7 +46,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('client with affinity awareness connecting to unknown servers', (done) => {
+    it('client with partition awareness connecting to unknown servers', (done) => {
         Promise.resolve().
             then(async () => {
                 const badEndpoints = ['127.0.0.1:10900', '127.0.0.1:10901'];
@@ -72,7 +72,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
             then(done).
             catch(error => done.fail(error));
     });
-    
+
     it('cache operation routed to new started node', (done) => {
         Promise.resolve().
             then(async () => {
@@ -83,7 +83,7 @@ describe('affinity awareness with checks of connection to cluster test suite >',
                 const cfg = new IgniteClientConfiguration(...endpoints).setConnectionOptions(false, null, true);
                 await client.connect(cfg);
 
-                const cache = await AffinityAwarenessTestUtils.getOrCreateCache(
+                const cache = await PartitionAwarenessTestUtils.getOrCreateCache(
                     client,
                     ObjectType.PRIMITIVE_TYPE.INTEGER,
                     ObjectType.PRIMITIVE_TYPE.INTEGER,

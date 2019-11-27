@@ -201,7 +201,7 @@ class TestingHelper {
 
     // Initializes testing environment: creates and starts the library client, sets default jasmine test timeout.
     // Should be called from any test suite beforeAll method.
-    static async init(affinityAwareness = config.affinityAwareness, serversNum = 1, needLogging = false, endpoints) {
+    static async init(partitionAwareness = config.partitionAwareness, serversNum = 1, needLogging = false, endpoints) {
         jasmine.DEFAULT_TIMEOUT_INTERVAL = TIMEOUT_MS;
 
         if (!endpoints)
@@ -211,7 +211,7 @@ class TestingHelper {
 
         TestingHelper._igniteClient = TestingHelper.makeClient();
         await TestingHelper._igniteClient.connect(new IgniteClientConfiguration(...endpoints).
-            setConnectionOptions(false, null, affinityAwareness));
+            setConnectionOptions(false, null, partitionAwareness));
     }
 
     // Cleans up testing environment.

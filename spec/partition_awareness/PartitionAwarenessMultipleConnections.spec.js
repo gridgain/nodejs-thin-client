@@ -19,7 +19,7 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const AffinityAwarenessTestUtils = require('./AffinityAwarenessTestUtils');
+const PartitionAwarenessTestUtils = require('./PartitionAwarenessTestUtils');
 const IgniteClient = require('@gridgain/thin-client');
 const ObjectType = IgniteClient.ObjectType;
 
@@ -31,7 +31,7 @@ const PARTITIONED_3_CACHE = 'partitioned3';
 const REPLICATED_CACHE = 'replicated';
 const SERVER_NUM = 3;
 
-describe('affinity awareness multiple connections test suite >', () => {
+describe('partition awareness multiple connections test suite >', () => {
     let igniteClient = null;
 
     beforeAll((done) => {
@@ -55,27 +55,27 @@ describe('affinity awareness multiple connections test suite >', () => {
             catch(_error => done());
     }, TestingHelper.TIMEOUT);
 
-    it('all cache operations with affinity awareness and multiple connections', (done) => {
+    it('all cache operations with partition awareness and multiple connections', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                await PartitionAwarenessTestUtils.testAllCacheOperations(cache);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and bad affinity', (done) => {
+    it('all cache operations with partition awareness and bad affinity', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getOrCreateCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, CUSTOM_AFFINITY_CACHE);
-                await AffinityAwarenessTestUtils.testRandomNode(cache);
+                await PartitionAwarenessTestUtils.testRandomNode(cache);
             }).
             then(done).
             catch(error => done.fail(error));
     });
     
-    it('put with affinity awareness and unknown cache', (done) => {
+    it('put with partition awareness and unknown cache', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, '__unknown_cache_359f72tg');
@@ -93,7 +93,7 @@ describe('affinity awareness multiple connections test suite >', () => {
             catch(error => done.fail(error));
     });
 
-    it('get or create null cache with affinity awareness', (done) => {
+    it('get or create null cache with partition awareness', (done) => {
         Promise.resolve().
             then(async () => {
                 try {
@@ -109,7 +109,7 @@ describe('affinity awareness multiple connections test suite >', () => {
             catch(error => done.fail(error));
     });
 
-    it('get or create null cache with affinity awareness', (done) => {
+    it('get or create null cache with partition awareness', (done) => {
         Promise.resolve().
             then(async () => {
                 try {
@@ -125,7 +125,7 @@ describe('affinity awareness multiple connections test suite >', () => {
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and partitioned cache with 0 backups', (done) => {
+    it('all cache operations with partition awareness and partitioned cache with 0 backups', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED_0_CACHE);
@@ -133,13 +133,13 @@ describe('affinity awareness multiple connections test suite >', () => {
                 // Update partition mapping
                 await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
-                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 42);
+                await PartitionAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 42);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and partitioned cache with 1 backups', (done) => {
+    it('all cache operations with partition awareness and partitioned cache with 1 backups', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED_1_CACHE);
@@ -147,13 +147,13 @@ describe('affinity awareness multiple connections test suite >', () => {
                 // Update partition mapping
                 await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
-                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 100500);
+                await PartitionAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 100500);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and partitioned cache with 3 backups', (done) => {
+    it('all cache operations with partition awareness and partitioned cache with 3 backups', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, PARTITIONED_3_CACHE);
@@ -161,24 +161,24 @@ describe('affinity awareness multiple connections test suite >', () => {
                 // Update partition mapping
                 await TestingHelper.ensureStableTopology(igniteClient, cache, 0, true);
 
-                await AffinityAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 1337);
+                await PartitionAwarenessTestUtils.testAllCacheOperationsOnTheSameKey(cache, 1337);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
-    it('all cache operations with affinity awareness and replicated cache', (done) => {
+    it('all cache operations with partition awareness and replicated cache', (done) => {
         Promise.resolve().
             then(async () => {
                 const cache = await getCache(ObjectType.PRIMITIVE_TYPE.INTEGER, ObjectType.PRIMITIVE_TYPE.INTEGER, REPLICATED_CACHE);
-                await AffinityAwarenessTestUtils.testAllCacheOperations(cache);
+                await PartitionAwarenessTestUtils.testAllCacheOperations(cache);
             }).
             then(done).
             catch(error => done.fail(error));
     });
 
     async function getOrCreateCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {
-        return await AffinityAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
+        return await PartitionAwarenessTestUtils.getOrCreateCache(igniteClient, keyType, valueType, cacheName, cacheCfg);
     }
 
     async function getCache(keyType, valueType, cacheName = CACHE_NAME, cacheCfg = null) {

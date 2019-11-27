@@ -20,7 +20,7 @@ const jasmine = new Jasmine();
 jasmine.loadConfig({
     'spec_dir': 'spec',
     'spec_files': [
-        "affinity_awareness/**/*[sS]pec.js",
+        "partition_awareness/**/*[sS]pec.js",
 	    "cache/**/*[sS]pec.js",
 	    "query/**/*[sS]pec.js"
     ],

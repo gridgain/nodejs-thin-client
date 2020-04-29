@@ -284,13 +284,15 @@ class TestingHelper {
 
     static async waitForCondition(cond, timeout) {
         const startTime = Date.now();
-
+        let now = startTime;
         do {
             const ok = await cond();
             if (ok)
                 return true;
+
             await TestingHelper.sleep(100);
-        } while ((Date.now() - startTime) < timeout);
+            now = Date.now();
+        } while ((now - startTime) < timeout);
 
         return await cond();
     }
@@ -412,28 +414,30 @@ class TestingHelper {
 
         let newTopVer = igniteClient._router._affinityTopologyVer;
 
-        while (newTopVer != oldTopVer) {
+        while (newTopVer !== oldTopVer) {
             oldTopVer = newTopVer;
             await cache.get(key);
             newTopVer = igniteClient._router._affinityTopologyVer;
         }
 
         // Now when topology stopped changing, let's ensure we received distribution map.
-        await TestingHelper._waitMapObtained(igniteClient, cache, timeout)
+        let ok = await TestingHelper.waitForCondition(async () => {
+            await cache.get(key);
+            return await TestingHelper._waitMapObtained(igniteClient, cache, 1000);
+        }, timeout);
+
+        if (!ok)
+            throw 'getting of partition map timed out';
 
         if (skipLogs)
             await TestingHelper.getRequestGridIdx();
     }
 
     // Waiting for distribution map to be obtained.
-    // It has been requested during the "put" operation before calling this function
-    static async _waitMapObtained(igniteClient, cache, timeout=3000) {
-        let waitOk = await TestingHelper.waitForCondition(() => {
+    static async _waitMapObtained(igniteClient, cache, timeout) {
+        return await TestingHelper.waitForCondition(() => {
             return igniteClient._router._distributionMap.has(cache._cacheId);
         }, timeout);
-
-        if (!waitOk)
-            throw 'getting of partition map timed out';
     }
 
     static async readLogFile(idx) {

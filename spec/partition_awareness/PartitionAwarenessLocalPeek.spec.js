@@ -81,7 +81,6 @@ describe('partition awareness with local peek test suite >', () => {
             catch(error => done.fail(error));
     });
 
-
     it('put binary object and check local peek', (done) => {
         Promise.resolve().
             then(async () => {

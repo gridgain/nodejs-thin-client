@@ -24,4 +24,5 @@ exports.partitionAwareness = process.env.GRIDGAIN_CLIENT_PARTITION_AWARENESS ===
                             process.env.GRIDGAIN_CLIENT_PARTITION_AWARENESS === '1';
 exports.igniteHome = process.env.IGNITE_HOME;
 
-//exports.debug = false;
+// exports.debug = true;
+// exports.nodeDebug = true;

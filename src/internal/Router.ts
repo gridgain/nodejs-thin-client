@@ -16,19 +16,36 @@
 
 'use strict';
 
-const Util = require('util');
-const Errors = require('../Errors');
-const IgniteClient = require('../IgniteClient');
-const ClientSocket = require('./ClientSocket');
-const PartitionAwarenessUtils = require('./PartitionAwarenessUtils');
-const BinaryUtils = require('./BinaryUtils');
-const BinaryObject = require('../BinaryObject');
-const ArgumentChecker = require('./ArgumentChecker');
-const Logger = require('./Logger');
+import * as Util from "util";
+import { IgniteClient, IgniteClientOnStateChanged, STATE } from "../IgniteClient";
+import ClientSocket from "./ClientSocket";
+import BinaryUtils from "./BinaryUtils";
+import { BinaryObject } from "../BinaryObject";
+import Logger from "./Logger";
+import { AffinityTopologyVersion, CacheAffinityMap, PartitionAwarenessCacheGroup, RendezvousAffinityFunction } from "./PartitionAwarenessUtils";
+import { IgniteClientError, LostConnectionError, IllegalStateError } from "../Errors";
+import BinaryCommunicator from "./BinaryCommunicator";
+import { IgniteClientConfiguration } from "../IgniteClientConfiguration";
+import {AffinityHint} from "../CacheClient";
+import {PRIMITIVE_TYPE} from "./Constants";
+import {CompositeType} from "../ObjectType";
 
-class Router {
+export default class Router {
 
-    constructor(onStateChanged) {
+    private _state: STATE;
+    private _connections: { [key: string]: ClientSocket };
+    private _partitionAwarenessAllowed: boolean;
+    private _partitionAwarenessActive: boolean;
+    private _distributionMap: Map<number, CacheAffinityMap>;
+    private _communicator: BinaryCommunicator;
+    private _config: IgniteClientConfiguration;
+    private _onStateChanged: IgniteClientOnStateChanged;
+    private _inactiveEndpoints: string[];
+    private _backgroundConnectTask: Promise<void>;
+    private _legacyConnection: ClientSocket;
+    private _affinityTopologyVer: AffinityTopologyVersion;
+
+    constructor(onStateChanged: IgniteClientOnStateChanged) {
         this._state = IgniteClient.STATE.DISCONNECTED;
         this._onStateChanged = onStateChanged;
 
@@ -46,13 +63,13 @@ class Router {
         // {Node UUID -> ClientSocket instance}
         this._connections = {};
         // {cacheId -> CacheAffinityMap}
-        this._distributionMap = new Map();
+        this._distributionMap = new Map<number, CacheAffinityMap>();
         this._affinityTopologyVer = null;
     }
 
-    async connect(communicator, config) {
-        if (this._state !== IgniteClient.STATE.DISCONNECTED) {
-            throw new Errors.IllegalStateError(this._state);
+    async connect(communicator: BinaryCommunicator, config: IgniteClientConfiguration) {
+        if (this._state !== STATE.DISCONNECTED) {
+            throw new IllegalStateError(this._state);
         }
 
         // Wait for background task to stop before we move forward
@@ -60,8 +77,8 @@ class Router {
 
         this._communicator = communicator;
         this._config = config;
-        this._partitionAwarenessAllowed = config._partitionAwareness;
-        this._inactiveEndpoints = [...config._endpoints];
+        this._partitionAwarenessAllowed = config.partitionAwareness;
+        this._inactiveEndpoints = [...config.endpoints];
 
         await this._connect();
     }
@@ -78,9 +95,9 @@ class Router {
         }
     }
 
-    async send(opCode, payloadWriter, payloadReader = null, affinityHint = null) {
+    async send(opCode, payloadWriter, payloadReader = null, affinityHint: AffinityHint = null) {
         if (this._state !== IgniteClient.STATE.CONNECTED) {
-            throw new Errors.IllegalStateError(this._state);
+            throw new IllegalStateError(this._state);
         }
 
         if (this._partitionAwarenessActive && affinityHint) {
@@ -96,7 +113,7 @@ class Router {
     }
 
     async _connect() {
-        const errors = new Array();
+        const errors = [];
         const endpoints = this._inactiveEndpoints;
         const config = this._config;
         const communicator = this._communicator;
@@ -134,7 +151,7 @@ class Router {
 
         const error = errors.join('; ');
         this._changeState(IgniteClient.STATE.DISCONNECTED, error);
-        throw new Errors.IgniteClientError(error);
+        throw new IgniteClientError(error);
     }
 
     // Can be called when there are no alive connections left
@@ -157,7 +174,7 @@ class Router {
         }
     }
 
-    async _backgroundConnect() {
+    async _backgroundConnect(): Promise<void> {
         // Local copy of _inactiveEndpoints to make sure the array is not being changed during the 'for' cycle
         const endpoints = [...this._inactiveEndpoints];
         const config = this._config;
@@ -217,7 +234,7 @@ class Router {
         return allConnections;
     }
 
-    _addConnection(socket) {
+    _addConnection(socket: ClientSocket) {
         const nodeUUID = socket.nodeUUID;
 
         if (this._partitionAwarenessAllowed && nodeUUID) {
@@ -285,7 +302,7 @@ class Router {
 
     /** Partition Awareness methods */
 
-    async _affinitySend(opCode, payloadWriter, payloadReader, affinityHint) {
+    async _affinitySend(opCode, payloadWriter, payloadReader, affinityHint: AffinityHint) {
         let connection = await this._chooseConnection(affinityHint);
 
         while (true) {
@@ -296,7 +313,7 @@ class Router {
                 return;
             }
             catch (err) {
-                if (!(err instanceof Errors.LostConnectionError)) {
+                if (!(err instanceof LostConnectionError)) {
                     throw err;
                 }
 
@@ -305,7 +322,7 @@ class Router {
                 this._removeConnection(connection);
 
                 if (this._getAllConnections().length == 0) {
-                    throw new Errors.LostConnectionError('Cluster is unavailable');
+                    throw new LostConnectionError('Cluster is unavailable');
                 }
             }
 
@@ -314,7 +331,7 @@ class Router {
         }
     }
 
-    async _chooseConnection(affinityHint) {
+    async _chooseConnection(affinityHint: AffinityHint) {
         const cacheId = affinityHint.cacheId;
 
         if (!this._distributionMap.has(cacheId)) {
@@ -327,7 +344,9 @@ class Router {
 
         const cacheAffinityMap = this._distributionMap.get(cacheId);
 
-        const nodeId = await this._determineNodeId(cacheAffinityMap,
+        // node id in cache affinity map is represented by byte array, so we have to convert it to string in order to use
+        // as connections map key
+        const nodeId: string = "" + await this._determineNodeId(cacheAffinityMap,
                                                    affinityHint.key,
                                                    affinityHint.keyType);
 
@@ -340,8 +359,8 @@ class Router {
         return this._getRandomConnection();
     }
 
-    async _determineNodeId(cacheAffinityMap, key, keyType) {
-        const partitionMap = cacheAffinityMap.partitionMapping;
+    async _determineNodeId(cacheAffinityMap: CacheAffinityMap, key: object, keyType: PRIMITIVE_TYPE | CompositeType): Promise<number[] | null> {
+        const partitionMap: Map<number, number[]> = cacheAffinityMap.partitionMapping;
 
         if (partitionMap.size == 0) {
             return null;
@@ -358,18 +377,18 @@ class Router {
             const affinityKeyTypeId = keyAffinityMap.get(affinityKeyInfo.typeId);
 
             if (affinityKey instanceof BinaryObject &&
-                affinityKey._fields.has(affinityKeyTypeId)) {
-                const field = affinityKey._fields.get(affinityKeyTypeId);
+                ((<BinaryObject>affinityKey).fields.has(affinityKeyTypeId))) {
+                const field = affinityKey.fields.get(affinityKeyTypeId);
                 affinityKey = await field.getValue();
                 affinityKeyTypeCode = field.typeCode;
             }
         }
 
         const keyHash = await BinaryUtils.hashCode(affinityKey, this._communicator, affinityKeyTypeCode);
-        const partition = PartitionAwarenessUtils.RendezvousAffinityFunction.calcPartition(keyHash, partitionMap.size);
+        const partition = RendezvousAffinityFunction.calcPartition(keyHash, partitionMap.size);
         Logger.logDebug('Partition = ' + partition);
 
-        const nodeId = partitionMap.get(partition);
+        const nodeId: number[] = partitionMap.get(partition);
         Logger.logDebug('Node ID = ' + nodeId);
 
         return nodeId;
@@ -424,7 +443,7 @@ class Router {
     }
 
     async _handleCachePartitions(payload) {
-        const affinityTopologyVer = new PartitionAwarenessUtils.AffinityTopologyVersion(payload);
+        const affinityTopologyVer = new AffinityTopologyVersion(payload);
         Logger.logDebug('Partitions info for topology version ' + affinityTopologyVer);
 
         if (this._versionIsNewer(affinityTopologyVer)) {
@@ -440,7 +459,7 @@ class Router {
         Logger.logDebug('Partitions info for ' + groupsNum + ' cache groups received');
 
         for (let i = 0; i < groupsNum; i++) {
-            const group = await PartitionAwarenessUtils.PartitionAwarenessCacheGroup.build(this._communicator, payload);
+            const group = await PartitionAwarenessCacheGroup.build(this._communicator, payload);
             // {partition -> nodeId}
             const partitionMapping = new Map();
 
@@ -451,7 +470,7 @@ class Router {
             }
 
             for (const [cacheId, config] of group.caches) {
-                const cacheAffinityMap = new PartitionAwarenessUtils.CacheAffinityMap(cacheId, partitionMapping, config);
+                const cacheAffinityMap = new CacheAffinityMap(cacheId, partitionMapping, config);
                 this._distributionMap.set(cacheId, cacheAffinityMap);
                 Logger.logDebug('Partitions info for cache: ' + cacheId);
             }
@@ -514,5 +533,3 @@ class Router {
         return new Promise(resolve => setTimeout(resolve, milliseconds));
     }
 }
-
-module.exports = Router;

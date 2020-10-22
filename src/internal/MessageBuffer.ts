@@ -17,14 +17,23 @@
 'use strict';
 
 const Long = require('long');
-const BinaryUtils = require('./BinaryUtils');
-const Errors = require('../Errors');
+import BinaryUtils from "./BinaryUtils";
+import { IgniteClientError } from '../Errors';
 
 const BUFFER_CAPACITY_DEFAULT = 256;
 const BYTE_ZERO = 0;
 const BYTE_ONE = 1;
 
-class MessageBuffer {
+export default class MessageBuffer {
+
+    private _buffer: Buffer;
+
+    private _capacity: number;
+
+    private _length: number;
+
+    private _position: number;
+
     constructor(capacity = BUFFER_CAPACITY_DEFAULT) {
         this._buffer = Buffer.allocUnsafe(capacity);
         this._capacity = capacity;
@@ -32,7 +41,7 @@ class MessageBuffer {
         this._position = 0;
     }
 
-    static from(source, position) {
+    static from(source, position): MessageBuffer {
         const buf = new MessageBuffer();
         buf._buffer = Buffer.from(source);
         buf._position = position;
@@ -47,7 +56,7 @@ class MessageBuffer {
         this._capacity = this._length;
     }
 
-    get position() {
+    get position(): number {
         return this._position;
     }
 
@@ -55,19 +64,19 @@ class MessageBuffer {
         this._position = position;
     }
 
-    get length() {
+    get length(): number {
         return this._length;
     }
 
-    get data() {
+    get data(): Buffer {
         return this.getSlice(0, this.length);
     }
 
-    get buffer() {
+    get buffer(): Buffer {
         return this._buffer;
     }
 
-    getSlice(start, end) {
+    getSlice(start, end): Buffer {
         return this._buffer.slice(start, end);
     }
 
@@ -90,7 +99,7 @@ class MessageBuffer {
             }
         }
         catch (err) {
-            throw Errors.IgniteClientError.valueCastError(value, BinaryUtils.TYPE_CODE.LONG);
+            throw IgniteClientError.valueCastError(value, BinaryUtils.TYPE_CODE.LONG);
         }
         const buffer = Buffer.from(value.toBytesLE());
         this.writeBuffer(buffer);
@@ -140,11 +149,11 @@ class MessageBuffer {
                     this._buffer.writeDoubleLE(value, this._position);
                     break;
                 default:
-                    throw Errors.IgniteClientError.internalError();
+                    throw IgniteClientError.internalError();
             }
         }
         catch (err) {
-            throw Errors.IgniteClientError.valueCastError(value, type);
+            throw IgniteClientError.valueCastError(value, type);
         }
         this._position += size;
     }
@@ -170,31 +179,31 @@ class MessageBuffer {
         this.writeLong(value.getTime());
     }
 
-    readByte() {
+    readByte(): number {
         return this.readNumber(BinaryUtils.TYPE_CODE.BYTE);
     }
 
-    readShort() {
+    readShort(): number {
         return this.readNumber(BinaryUtils.TYPE_CODE.SHORT);
     }
 
-    readInteger() {
+    readInteger(): number {
         return this.readNumber(BinaryUtils.TYPE_CODE.INTEGER);
     }
 
-    readLong() {
+    readLong(): Long {
         const size = BinaryUtils.getSize(BinaryUtils.TYPE_CODE.LONG);
         this._ensureSize(size);
-        const value = Long.fromBytesLE([...this._buffer.slice(this._position, this._position + size)]);
+        const value: Long = Long.fromBytesLE([...this._buffer.slice(this._position, this._position + size)]);
         this._position += size;
         return value;
     }
 
-    readFloat() {
+    readFloat(): number {
         return this.readNumber(BinaryUtils.TYPE_CODE.FLOAT);
     }
 
-    readDouble() {
+    readDouble(): number {
         return this.readNumber(BinaryUtils.TYPE_CODE.DOUBLE);
     }
 
@@ -219,7 +228,7 @@ class MessageBuffer {
                 value = this._buffer.readDoubleLE(this._position);
                 break;
             default:
-                throw Errors.IgniteClientError.internalError();
+                throw IgniteClientError.internalError();
         }
         this._position += size;
         return value;
@@ -229,11 +238,11 @@ class MessageBuffer {
         return this.readByte() === BYTE_ONE;
     }
 
-    readChar() {
+    readChar(): string {
         return String.fromCharCode(this.readShort());
     }
 
-    readString() {
+    readString(): string {
         const bytesCount = this.readInteger();
         this._ensureSize(bytesCount);
         const result = this._buffer.toString(BinaryUtils.ENCODING, this._position, this._position + bytesCount);
@@ -241,14 +250,14 @@ class MessageBuffer {
         return result;
     }
 
-    readBuffer(length) {
+    readBuffer(length): Buffer {
         this._ensureSize(length);
         const result = this._buffer.slice(this._position, this._position + length);
         this._position += length;
         return result;
     }
 
-    readDate() {
+    readDate(): Date {
         return new Date(this.readLong().toNumber());
     }
 
@@ -267,13 +276,13 @@ class MessageBuffer {
 
     _ensureSize(size) {
         if (this._position + size > this._length) {
-            throw Errors.IgniteClientError.internalError('Unexpected format of response');
+            throw IgniteClientError.internalError('Unexpected format of response');
         }
     }
 
     _ensureCapacity(valueSize) {
         if (valueSize <= 0) {
-            throw Errors.IgniteClientError.internalError();
+            throw IgniteClientError.internalError();
         }
         let newCapacity = this._capacity;
         while (this._position + valueSize > newCapacity) {
@@ -288,5 +297,3 @@ class MessageBuffer {
         }
     }
 }
-
-module.exports = MessageBuffer;

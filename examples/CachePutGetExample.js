@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-const IgniteClient = require('@gridgain/thin-client');
-const ObjectType = IgniteClient.ObjectType;
-const ComplexObjectType = IgniteClient.ComplexObjectType;
-const BinaryObject = IgniteClient.BinaryObject;
-const CacheEntry = IgniteClient.CacheEntry;
-const ScanQuery = IgniteClient.ScanQuery;
-const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
+const {IgniteClient, ObjectType, ComplexObjectType, BinaryObject, CacheEntry, ScanQuery, IgniteClientConfiguration} = require('@gridgain/thin-client');
 
 const ENDPOINT = '127.0.0.1:10800';
 

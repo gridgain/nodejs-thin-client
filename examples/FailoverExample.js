@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-const IgniteClient = require('@gridgain/thin-client');
-const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
+const {IgniteClient, IgniteClientConfiguration} = require('@gridgain/thin-client');
 
 const ENDPOINT1 = 'localhost:10800';
 const ENDPOINT2 = 'localhost:10801';

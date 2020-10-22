@@ -26,14 +26,7 @@ const fs = require('fs');
 const child_process = require('child_process');
 const config = require('./config');
 const LogReader = require('./LogReader');
-const IgniteClient = require('@gridgain/thin-client');
-const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
-const Errors = IgniteClient.Errors;
-const EnumItem = IgniteClient.EnumItem;
-const Timestamp = IgniteClient.Timestamp;
-const Decimal = IgniteClient.Decimal;
-const BinaryObject = IgniteClient.BinaryObject;
-const ObjectType = IgniteClient.ObjectType;
+const {IgniteClient, IgniteClientConfiguration, Errors, EnumItem, Timestamp, Decimal, BinaryObject, ObjectType} = require('@gridgain/thin-client');
 
 const TIMEOUT_MS = 60000;
 

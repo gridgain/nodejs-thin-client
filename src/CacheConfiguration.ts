@@ -16,12 +16,13 @@
 
 'use strict';
 
-const ComplexObjectType = require('./ObjectType').ComplexObjectType;
-const ObjectArrayType = require('./ObjectType').ObjectArrayType;
-const BinaryUtils = require('./internal/BinaryUtils');
-const BinaryCommunicator = require('./internal/BinaryCommunicator');
-const ArgumentChecker = require('./internal/ArgumentChecker');
-const Errors = require('./Errors');
+import {ComplexObjectType, CompositeType, ObjectArrayType} from "./ObjectType";
+import BinaryUtils from "./internal/BinaryUtils";
+import BinaryCommunicator from "./internal/BinaryCommunicator";
+import ArgumentChecker from "./internal/ArgumentChecker";
+import { IgniteClientError } from "./Errors";
+import MessageBuffer from "./internal/MessageBuffer";
+import {PRIMITIVE_TYPE} from "./internal/Constants";
 
 /**
  * Class representing Cache Key part of GridGain {@link CacheConfiguration}.
@@ -30,7 +31,11 @@ const Errors = require('./Errors');
  *
  * See Apache Ignite documentation for details of every configuration setting.
  */
-class CacheKeyConfiguration {
+export class CacheKeyConfiguration {
+
+    private _typeName: string;
+
+    private _affinityKeyFieldName: string;
 
     /**
      * Public constructor.
@@ -40,7 +45,7 @@ class CacheKeyConfiguration {
      *
      * @return {CacheKeyConfiguration} - new CacheKeyConfiguration instance.
      */
-    constructor(typeName = null, affinityKeyFieldName = null) {
+    constructor(typeName: string = null, affinityKeyFieldName: string = null) {
         this._typeName = typeName;
         this._affinityKeyFieldName = affinityKeyFieldName;
     }
@@ -113,7 +118,15 @@ class CacheKeyConfiguration {
  *
  * See Apache Ignite documentation for details of every configuration setting.
  */
-class QueryEntity {
+export class QueryEntity {
+    private _keyTypeName: string;
+    private _valueTypeName: string;
+    private _tableName: string;
+    private _keyFieldName: string;
+    private _valueFieldName: string;
+    private _fields: QueryField[];
+    private _aliases: Map<string, string>;
+    private _indexes: QueryIndex[];
 
     /**
      * Public constructor.
@@ -138,7 +151,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setKeyTypeName(keyTypeName) {
+    setKeyTypeName(keyTypeName: string) {
         this._keyTypeName = keyTypeName;
         return this;
     }
@@ -159,7 +172,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setValueTypeName(valueTypeName) {
+    setValueTypeName(valueTypeName: string) {
         this._valueTypeName = valueTypeName;
         return this;
     }
@@ -180,7 +193,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setTableName(tableName) {
+    setTableName(tableName: string) {
         this._tableName = tableName;
         return this;
     }
@@ -201,7 +214,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setKeyFieldName(keyFieldName) {
+    setKeyFieldName(keyFieldName: string) {
         this._keyFieldName = keyFieldName;
         return this;
     }
@@ -222,7 +235,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setValueFieldName(valueFieldName) {
+    setValueFieldName(valueFieldName: string) {
         this._valueFieldName = valueFieldName;
         return this;
     }
@@ -244,7 +257,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setFields(fields) {
+    setFields(fields: QueryField[]) {
         this._fields = fields;
         return this;
     }
@@ -267,7 +280,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setAliases(aliases) {
+    setAliases(aliases: Map<string, string>) {
         this._aliases = aliases;
         return this;
     }
@@ -288,7 +301,7 @@ class QueryEntity {
      *
      * @return {QueryEntity} - the same instance of the QueryEntity.
      */
-    setIndexes(indexes) {
+    setIndexes(indexes: QueryIndex[]) {
         this._indexes = indexes;
         return this;
     }
@@ -398,7 +411,18 @@ class QueryEntity {
  *
  * See Apache Ignite documentation for details of every configuration setting.
  */
-class QueryField {
+export class QueryField {
+    private _name: string;
+    private _typeName: string;
+    private _isKeyField: boolean;
+    private _isNotNull: boolean;
+    private _precision: number;
+    private _scale: number;
+    private _communicator: BinaryCommunicator;
+    private _buffer: MessageBuffer;
+    private _defaultValue: object;
+    private _valueType: PRIMITIVE_TYPE | CompositeType;
+    private _index: number;
 
     /**
      * Public constructor.
@@ -408,7 +432,7 @@ class QueryField {
      *
      * @return {QueryField} - new QueryField instance.
      */
-    constructor(name = null, typeName = null) {
+    constructor(name: string = null, typeName: string = null) {
         this._name = name;
         this._typeName = typeName;
         this._isKeyField = false;
@@ -510,14 +534,14 @@ class QueryField {
      * Sets query field default value.
      *
      * @param {*} defaultValue - Query field default value.
-     * @param {ObjectType.PRIMITIVE_TYPE | CompositeType} [valueType=null] - type of the default value:
+     * @param {PRIMITIVE_TYPE | CompositeType} [valueType=null] - type of the default value:
      *   - either a type code of primitive (simple) type
      *   - or an instance of class representing non-primitive (composite) type
      *   - or null (or not specified) that means the type is not specified
      *
      * @return {QueryField} - the same instance of the QueryField.
      */
-    setDefaultValue(defaultValue, valueType = null) {
+    setDefaultValue(defaultValue: object, valueType: PRIMITIVE_TYPE | CompositeType = null) {
         this._defaultValue = defaultValue;
         this._valueType = valueType;
         return this;
@@ -639,11 +663,11 @@ class QueryField {
  * @property FULLTEXT 1
  * @property GEOSPATIAL 2
  */
- const INDEX_TYPE = Object.freeze({
-    SORTED : 0,
-    FULLTEXT : 1,
-    GEOSPATIAL : 2
-});
+ export enum INDEX_TYPE {
+    SORTED = 0,
+    FULLTEXT = 1,
+    GEOSPATIAL = 2
+}
 
 /**
  * Class representing one Query Index element of {@link QueryEntity} of GridGain {@link CacheConfiguration}.
@@ -652,17 +676,25 @@ class QueryField {
  *
  * See Apache Ignite documentation for details of every configuration setting.
  */
-class QueryIndex {
+export class QueryIndex {
+
+    private _name: string;
+
+    private _inlineSize: number;
+
+    private _type: INDEX_TYPE;
+
+    private _fields: Map<string, boolean>;
 
     /**
      * Public constructor.
      *
      * @param {string} [name=null] - Query index name.
-     * @param {string} [typeName=QueryIndex.INDEX_TYPE.SORTED] - Query index type name.
+     * @param {string} type - Query index type name.
      *
      * @return {QueryIndex} - new QueryIndex instance.
      */
-    constructor(name = null, type = QueryIndex.INDEX_TYPE.SORTED) {
+    constructor(name: string = null, type: INDEX_TYPE = INDEX_TYPE.SORTED) {
         this._name = name;
         this.setType(type);
         this._inlineSize = -1;
@@ -697,13 +729,13 @@ class QueryIndex {
     /**
      * Sets query index type.
      *
-     * @param {QueryIndex.INDEX_TYPE} type - Query index type.
+     * @param {INDEX_TYPE} type - Query index type.
      *
      * @return {QueryIndex} - the same instance of the QueryIndex.
      *
      * @throws {IgniteClientError} if error.
      */
-    setType(type) {
+    setType(type: INDEX_TYPE): QueryIndex {
         ArgumentChecker.hasValueFrom(type, 'type', false, QueryIndex.INDEX_TYPE);
         this._type = type;
         return this;
@@ -754,7 +786,7 @@ class QueryIndex {
      *
      * @return {QueryIndex} - the same instance of the QueryIndex.
      */
-    setFields(fields) {
+    setFields(fields: Map<string, boolean>): QueryIndex {
         this._fields = fields;
         return this;
     }
@@ -955,7 +987,8 @@ const WRITE_SYNCHRONIZATION_MODE = Object.freeze({
  *
  * See Apache Ignite documentation for details of every configuration setting.
  */
-class CacheConfiguration {
+export class CacheConfiguration {
+    private _properties: Map<number, object>;
 
     /**
      * Public constructor.
@@ -963,7 +996,7 @@ class CacheConfiguration {
      * @return {CacheConfiguration} - new CacheConfiguration instance.
      */
     constructor() {
-        this._properties = new Map();
+        this._properties = new Map<number, object>();
     }
 
     static get CACHE_ATOMICITY_MODE() {
@@ -1647,7 +1680,7 @@ class CacheConfiguration {
      *
      * @throws {IgniteClientError} if error.
      */
-    setQueryEntities(...queryEntities) {
+    setQueryEntities(...queryEntities: QueryEntity[]) {
         ArgumentChecker.hasType(queryEntities, 'queryEntities', true, QueryEntity);
         this._properties.set(PROP_QUERY_ENTITY, queryEntities);
         return this;
@@ -1709,7 +1742,7 @@ class CacheConfiguration {
                 }
                 return;
             default:
-                throw Errors.IgniteClientError.internalError();
+                throw IgniteClientError.internalError();
         }
     }
 
@@ -1778,13 +1811,7 @@ class CacheConfiguration {
                 }
                 return;
             default:
-                throw Errors.IgniteClientError.internalError();
+                throw IgniteClientError.internalError();
         }
     }
 }
-
-module.exports = CacheConfiguration;
-module.exports.QueryEntity = QueryEntity;
-module.exports.QueryField = QueryField;
-module.exports.QueryIndex = QueryIndex;
-module.exports.CacheKeyConfiguration = CacheKeyConfiguration;

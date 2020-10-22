@@ -15,12 +15,7 @@
  */
 
 const Util = require('util');
-const IgniteClient = require('@gridgain/thin-client');
-const ObjectType = IgniteClient.ObjectType;
-const IgniteClientConfiguration = IgniteClient.IgniteClientConfiguration;
-const CacheConfiguration = IgniteClient.CacheConfiguration;
-const SqlFieldsQuery = IgniteClient.SqlFieldsQuery;
-const SqlQuery = IgniteClient.SqlQuery;
+const {IgniteClient, ObjectType, CacheConfiguration, SqlFieldsQuery, SqlQuery, IgniteClientConfiguration} = require('@gridgain/thin-client');
 
 const ENDPOINT = '127.0.0.1:10800';
 

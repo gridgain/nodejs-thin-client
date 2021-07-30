@@ -19,8 +19,7 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const IgniteClient = require('@gridgain/thin-client');
-const CacheConfiguration = IgniteClient.CacheConfiguration;
+const {IgniteClient, CacheConfiguration} = require('@gridgain/thin-client');
 
 // Helper class for testing partition awareness feature of @gridgain/thin-client library.
 class PartitionAwarenessTestUtils {

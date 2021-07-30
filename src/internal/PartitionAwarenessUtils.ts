@@ -16,10 +16,16 @@
 
 'use strict';
 
-const Util = require('util');
-const BinaryUtils = require('./BinaryUtils');
+import * as Util from 'util';
+import BinaryUtils from "./BinaryUtils";
+import MessageBuffer from "./MessageBuffer";
+import BinaryCommunicator from "./BinaryCommunicator";
 
-class AffinityTopologyVersion {
+export class AffinityTopologyVersion {
+
+    private _major: number;
+
+    private _minor: number;
 
     constructor(payload) {
         this._major = payload.readLong();
@@ -43,9 +49,13 @@ class AffinityTopologyVersion {
     }
 }
 
-class PartitionAwarenessCacheGroup {
+export class PartitionAwarenessCacheGroup {
 
-    constructor(caches, partitionMap) {
+    private _caches: Array<[number, Map<number, number>]>;
+
+    private _partitionMap: Array<[number, number[]]>;
+
+    constructor(caches: Array<[number, Map<number, number>]>, partitionMap: Array<[number, number[]]>) {
         this._caches = caches;
         this._partitionMap = partitionMap;
     }
@@ -54,7 +64,7 @@ class PartitionAwarenessCacheGroup {
         const applicable = payload.readBoolean();
 
         const cachesNum = payload.readInteger();
-        const caches = new Array(cachesNum);
+        const caches = new Array<[number, Map<number, number>]>(cachesNum);
 
         for (let i = 0; i < cachesNum; i++) {
             const cacheId = payload.readInteger();
@@ -68,25 +78,25 @@ class PartitionAwarenessCacheGroup {
         }
 
         if (!applicable) {
-            return new PartitionAwarenessCacheGroup(caches, new Map());
+            return new PartitionAwarenessCacheGroup(caches, []);
         }
 
-        const partitionMap = await this._readPartitionMap(communicator, payload);
+        const partitionMap: Array<[number, number[]]> = await this._readPartitionMap(communicator, payload);
 
         return new PartitionAwarenessCacheGroup(caches, partitionMap);
     }
 
-    get caches() {
+    get caches(): Array<[number, Map<number, number>]> {
         // Array [[cacheId, cfg]]
         return this._caches;
     }
 
-    get partitionMap() {
+    get partitionMap(): Array<[number, number[]]> {
         // Array [[nodeId, [partitions]]]
         return this._partitionMap;
     }
 
-    static _readCacheKeyConfig(payload) {
+    static _readCacheKeyConfig(payload): Map<number, number> {
         const configsNum = payload.readInteger();
         // {Key Type ID -> Affinity Key Field ID}
         let configs = new Map();
@@ -103,15 +113,15 @@ class PartitionAwarenessCacheGroup {
         return configs;
     }
 
-    static async _readPartitionMap(communicator, payload) {
+    static async _readPartitionMap(communicator: BinaryCommunicator, payload: MessageBuffer): Promise<Array<[number, number[]]>> {
         const partitionMapSize = payload.readInteger();
         // [[nodeId, [partitions]]]
-        const partitionMap = new Array(partitionMapSize);
+        const partitionMap = new Array<[number, number[]]>(partitionMapSize);
 
         for (let i = 0; i < partitionMapSize; i++) {
             const nodeId = await communicator.readObject(payload, BinaryUtils.TYPE_CODE.UUID);
             const partitionsNum = payload.readInteger();
-            const partitions = new Array(partitionsNum);
+            const partitions = new Array<number>(partitionsNum);
 
             for (let j = 0; j < partitionsNum; j++) {
                 partitions[j] = payload.readInteger();
@@ -124,30 +134,37 @@ class PartitionAwarenessCacheGroup {
     }
 }
 
-class CacheAffinityMap {
-    constructor(cacheId, partitionMapping, keyConfig) {
+export class CacheAffinityMap {
+
+    private _cacheId: number;
+
+    // Map {partition -> nodeId}, nodeId is UUID represented by array of bytes
+    private _partitionMapping: Map<number, number[]>;
+
+    // Map {Key Type ID -> Affinity Key Field ID}
+    private _keyConfig: Map<number, number>;
+
+    constructor(cacheId: number, partitionMapping: Map<number, number[]>, keyConfig: Map<number, number>) {
         this._cacheId = cacheId;
         this._partitionMapping = partitionMapping;
         this._keyConfig = keyConfig;
     }
 
-    get cacheId() {
+    get cacheId(): number {
         return this._cacheId;
     }
 
-    get partitionMapping() {
-        // Map {partition -> nodeId}
+    get partitionMapping(): Map<number, number[]> {
         return this._partitionMapping;
     }
 
-    get keyConfig() {
-        // Map {Key Type ID -> Affinity Key Field ID}
+    get keyConfig(): Map<number, number> {
         return this._keyConfig;
     }
 }
 
-class RendezvousAffinityFunction {
-    static calcPartition(keyHash, partitionsNum) {
+export class RendezvousAffinityFunction {
+    static calcPartition(keyHash, partitionsNum): number {
         const mask = (partitionsNum & (partitionsNum - 1)) == 0 ? partitionsNum - 1 : -1;
 
         if (mask >= 0) {
@@ -157,8 +174,3 @@ class RendezvousAffinityFunction {
         return Math.abs(keyHash % partitionsNum);
     }
 }
-
-module.exports.AffinityTopologyVersion = AffinityTopologyVersion;
-module.exports.PartitionAwarenessCacheGroup = PartitionAwarenessCacheGroup;
-module.exports.CacheAffinityMap = CacheAffinityMap;
-module.exports.RendezvousAffinityFunction = RendezvousAffinityFunction;

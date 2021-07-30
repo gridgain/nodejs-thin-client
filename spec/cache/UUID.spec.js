@@ -19,10 +19,7 @@
 require('jasmine-expect');
 
 const TestingHelper = require('../TestingHelper');
-const IgniteClient = require('@gridgain/thin-client');
-const CacheConfiguration = IgniteClient.CacheConfiguration;
-const SqlFieldsQuery = IgniteClient.SqlFieldsQuery;
-const ObjectType = IgniteClient.ObjectType;
+const { IgniteClient, CacheConfiguration, SqlFieldsQuery, ObjectType } = require('@gridgain/thin-client');
 
 const CACHE_NAME = '__test_cache';
 const TABLE_NAME = '__test_UUID_table';

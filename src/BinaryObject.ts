@@ -16,17 +16,16 @@
 
 'use strict';
 
-const Util = require('util');
-const ObjectType = require('./ObjectType').ObjectType;
-const ComplexObjectType = require('./ObjectType').ComplexObjectType;
-const Errors = require('./Errors');
-const BinaryUtils = require('./internal/BinaryUtils');
-const BinaryType = require('./internal/BinaryType');
-const BinaryField = require('./internal/BinaryType').BinaryField;
-const BinaryTypeBuilder = require('./internal/BinaryType').BinaryTypeBuilder;
-const ArgumentChecker = require('./internal/ArgumentChecker');
-const MessageBuffer = require('./internal/MessageBuffer');
-const Logger = require('./internal/Logger');
+import * as Util from "util";
+import {ComplexObjectType, CompositeType, ObjectType} from "./ObjectType";
+import BinaryUtils from "./internal/BinaryUtils";
+import BinaryType, {BinaryField, BinaryTypeBuilder} from "./internal/BinaryType";
+import ArgumentChecker from "./internal/ArgumentChecker";
+import MessageBuffer from "./internal/MessageBuffer";
+import Logger from "./internal/Logger";
+import { IgniteClientError } from "./Errors";
+import { PRIMITIVE_TYPE } from "./internal/Constants";
+import BinaryCommunicator from "./internal/BinaryCommunicator";
 
 const HEADER_LENGTH = 24;
 const VERSION = 1;
@@ -57,7 +56,19 @@ const FLAG_COMPACT_FOOTER = 0x0020;
  *   - created using the public constructor. Fields may be added to such an instance using setField() method.
  *   - created from a JavaScript object using static fromObject() method.
  */
-class BinaryObject {
+export class BinaryObject {
+    private _typeBuilder: BinaryTypeBuilder;
+    private _modified: boolean;
+    private _hasSchema: boolean;
+    private _compactFooter: boolean;
+    private _hasRawData: boolean;
+    private _fields: Map<number, BinaryObjectField>;
+    private _buffer: MessageBuffer;
+    private _startPos: number;
+    private _hashCode: number;
+    private _schemaOffset: number;
+    private _length: number;
+    private _offsetType: PRIMITIVE_TYPE;
 
     /**
      * Creates an instance of the BinaryObject without any fields.
@@ -70,10 +81,10 @@ class BinaryObject {
      *
      * @throws {IgniteClientError} if error.
      */
-    constructor(typeName) {
+    constructor(typeName: string) {
         ArgumentChecker.notEmpty(typeName, 'typeName');
         this._buffer = null;
-        this._fields = new Map();
+        this._fields = new Map<number, BinaryObjectField>();
         this._typeBuilder = BinaryTypeBuilder.fromTypeName(typeName);
         this._modified = false;
         this._schemaOffset = null;
@@ -120,7 +131,7 @@ class BinaryObject {
                     complexObjectType ? complexObjectType._getFieldType(fieldName) : null);
             }
             else {
-                throw Errors.IgniteClientError.serializationError(
+                throw IgniteClientError.serializationError(
                     true, Util.format('field "%s" is undefined', fieldName));
             }
         }
@@ -235,7 +246,7 @@ class BinaryObject {
         for (let field of this._fields.values()) {
             binaryField = this._typeBuilder.getField(field.id);
             if (!binaryField) {
-                throw Errors.IgniteClientError.serializationError(
+                throw IgniteClientError.serializationError(
                     false, Util.format('field with id "%s" can not be deserialized', field.id));
             }
             fieldName = binaryField.name;
@@ -253,6 +264,10 @@ class BinaryObject {
         return this._typeBuilder.getTypeName();
     }
 
+    get fields() {
+        return this._fields;
+    }
+
     /**
      * Returns names of all fields of this BinaryObject instance.
      *
@@ -261,13 +276,13 @@ class BinaryObject {
      * @throws {IgniteClientError} if error.
      */
     getFieldNames() {
-        return this._typeBuilder._schema.fieldIds.map(fieldId => {
+        return this._typeBuilder.schema.fieldIds.map(fieldId => {
             const field = this._typeBuilder.getField(fieldId);
             if (field) {
                 return field.name;
             }
             else {
-                throw Errors.IgniteClientError.internalError(
+                throw IgniteClientError.internalError(
                     Util.format('Field "%s" is absent in binary type fields', fieldId));
             }
         });
@@ -285,8 +300,8 @@ class BinaryObject {
     /**
      * @ignore
      */
-    static async _fromBuffer(communicator, buffer) {
-        const result = new BinaryObject(new ComplexObjectType({})._typeName);
+    static async _fromBuffer(communicator: BinaryCommunicator, buffer: MessageBuffer) {
+        const result = new BinaryObject(new ComplexObjectType({}).typeName);
         result._buffer = buffer;
         result._startPos = buffer.position;
         await result._read(communicator);
@@ -296,7 +311,7 @@ class BinaryObject {
     /**
      * @ignore
      */
-    async _getHashCode(communicator) {
+    async _getHashCode(communicator: BinaryCommunicator) {
         if (this._hashCode !== null && !this._modified) {
             return this._hashCode;
         }
@@ -395,8 +410,8 @@ class BinaryObject {
         await this._readHeader(communicator);
         if (this._hasSchema) {
             this._buffer.position = this._startPos + this._schemaOffset;
-            const fieldOffsets = new Array();
-            const fieldIds = this._typeBuilder._schema.fieldIds;
+            const fieldOffsets = [];
+            const fieldIds = this._typeBuilder.schema.fieldIds;
             let index = 0;
             let fieldId;
             let schemaEndOffset = this._startPos + this._length;
@@ -406,11 +421,11 @@ class BinaryObject {
             while (this._buffer.position < schemaEndOffset) {
                 if (!this._compactFooter) {
                     fieldId = this._buffer.readInteger();
-                    this._typeBuilder._schema.addField(fieldId);
+                    this._typeBuilder.schema.addField(fieldId);
                 }
                 else {
                     if (index >= fieldIds.length) {
-                        throw Errors.IgniteClientError.serializationError(
+                        throw IgniteClientError.serializationError(
                             false, 'wrong number of fields in schema');
                     }
                     fieldId = fieldIds[index];
@@ -443,7 +458,7 @@ class BinaryObject {
         // version
         const version = this._buffer.readByte();
         if (version !== VERSION) {
-            throw Errors.IgniteClientError.internalError();
+            throw IgniteClientError.internalError();
         }
         // flags
         const flags = this._buffer.readShort();
@@ -472,8 +487,27 @@ class BinaryObject {
 /**
  * @ignore
  */
-class BinaryObjectField {
-    constructor(name, value = undefined, type = null) {
+export class BinaryObjectField {
+
+    private _name: string;
+
+    private _id: number;
+
+    private _value: object;
+
+    private _type: PRIMITIVE_TYPE | CompositeType;
+
+    private _typeCode: number;
+
+    private _communicator: BinaryCommunicator;
+
+    private _buffer: MessageBuffer;
+
+    private _offset: number;
+
+    private _length: number;
+
+    constructor(name: string, value = undefined, type = null) {
         this._name = name;
         this._id = BinaryField._calculateId(name);
         this._value = value;
@@ -515,7 +549,7 @@ class BinaryObjectField {
         return BinaryUtils.TYPE_CODE.INTEGER;
     }
 
-    static _fromBuffer(communicator, buffer, offset, length, id) {
+    static _fromBuffer(communicator: BinaryCommunicator, buffer: MessageBuffer, offset: number, length: number, id: number) {
         const result = new BinaryObjectField(null);
         result._id = id;
         result._communicator = communicator;
@@ -547,5 +581,3 @@ class BinaryObjectField {
         buffer.writeNumber(this._offset - headerStartPos, offsetType, false);
     }
 }
-
-module.exports = BinaryObject;

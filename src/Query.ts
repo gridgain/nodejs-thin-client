@@ -16,12 +16,15 @@
 
 'use strict';
 
-const Util = require('util');
-const Cursor = require('./Cursor').Cursor;
-const SqlFieldsCursor = require('./Cursor').SqlFieldsCursor;
-const ArgumentChecker = require('./internal/ArgumentChecker');
-const BinaryCommunicator = require('./internal/BinaryCommunicator');
-const BinaryUtils = require('./internal/BinaryUtils');
+import * as Util from "util";
+import {BaseCursor, Cursor, SqlFieldsCursor} from "./Cursor";
+import ArgumentChecker from "./internal/ArgumentChecker";
+import BinaryCommunicator from "./internal/BinaryCommunicator";
+import BinaryUtils, {OPERATION} from "./internal/BinaryUtils";
+import { CompositeType } from "./ObjectType";
+import { PRIMITIVE_TYPE } from "./internal/Constants";
+import MessageBuffer from "./internal/MessageBuffer";
+import {CacheEntry} from "./CacheClient";
 
 const PAGE_SIZE_DEFAULT = 1024;
 
@@ -34,7 +37,13 @@ const DeprecateSetLocal = Util.deprecate(() => {}, "Query.setLocal is deprecated
  *
  * @hideconstructor
  */
-class Query {
+abstract class Query<T> {
+
+    protected _local: boolean;
+
+    protected _pageSize: number;
+
+    protected _operation: OPERATION;
 
     /**
      * Set local query flag.
@@ -45,7 +54,7 @@ class Query {
      *
      * @deprecated Will be removed in later versions.
      */
-    setLocal(local) {
+    setLocal(local: boolean): Query<T> {
         DeprecateSetLocal();
         this._local = local;
         return this;
@@ -58,7 +67,7 @@ class Query {
      *
      * @return {Query} - the same instance of the Query.
      */
-    setPageSize(pageSize) {
+    setPageSize(pageSize: number): Query<T> {
         this._pageSize = pageSize;
         return this;
     }
@@ -68,18 +77,34 @@ class Query {
     /**
      * @ignore
      */
-    constructor(operation) {
+    constructor(operation: OPERATION) {
         this._operation = operation;
         this._local = false;
         this._pageSize = PAGE_SIZE_DEFAULT;
     }
+
+    abstract _getCursor(communicator, payload, keyType, valueType): Promise<BaseCursor<T>>;
 }
 
 /**
  * Class representing an SQL query which returns the whole cache entries (key-value pairs).
  * @extends Query
  */
-class SqlQuery extends Query {
+export class SqlQuery extends Query<CacheEntry> {
+    
+    private _type: string;
+    
+    protected _sql: string;
+    
+    private _argTypes: PRIMITIVE_TYPE[] | CompositeType[];
+    
+    protected _distributedJoins: boolean;
+    
+    protected _replicatedOnly: boolean;
+    
+    protected _timeout: number;
+    
+    private _args: object[];
 
     /**
      * Public constructor.
@@ -102,7 +127,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - new SqlQuery instance.
      */
-    constructor(type, sql) {
+    constructor(type: string, sql: string) {
         super(BinaryUtils.OPERATION.QUERY_SQL);
         this.setType(type);
         this.setSql(sql);
@@ -120,7 +145,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setType(type) {
+    setType(type: string): SqlQuery {
         if (this instanceof SqlFieldsQuery) {
             ArgumentChecker.invalidArgument(type, 'type', SqlFieldsQuery);
         }
@@ -138,7 +163,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setSql(sql) {
+    setSql(sql: string): SqlQuery {
         ArgumentChecker.notNull(sql, 'sql');
         this._sql = sql;
         return this;
@@ -156,7 +181,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setArgs(...args) {
+    setArgs(...args: object[]): SqlQuery {
         this._args = args;
         return this;
     }
@@ -178,7 +203,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setArgTypes(...argTypes) {
+    setArgTypes(...argTypes: PRIMITIVE_TYPE[] | CompositeType[]): SqlQuery {
         this._argTypes = argTypes;
         return this;
     }
@@ -190,7 +215,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setDistributedJoins(distributedJoins) {
+    setDistributedJoins(distributedJoins: boolean): SqlQuery {
         this._distributedJoins = distributedJoins;
         return this;
     }
@@ -202,7 +227,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setReplicatedOnly(replicatedOnly) {
+    setReplicatedOnly(replicatedOnly: boolean): SqlQuery {
         this._replicatedOnly = replicatedOnly;
         return this;
     }
@@ -215,7 +240,7 @@ class SqlQuery extends Query {
      *
      * @return {SqlQuery} - the same instance of the SqlQuery.
      */
-    setTimeout(timeout) {
+    setTimeout(timeout: number): SqlQuery {
         this._timeout = timeout;
         return this;
     }
@@ -225,7 +250,7 @@ class SqlQuery extends Query {
     /**
      * @ignore
      */
-    async _write(communicator, buffer) {
+    async _write(communicator: BinaryCommunicator, buffer: MessageBuffer) {
         BinaryCommunicator.writeString(buffer, this._type);
         BinaryCommunicator.writeString(buffer, this._sql);
         await this._writeArgs(communicator, buffer);
@@ -239,7 +264,7 @@ class SqlQuery extends Query {
     /**
      * @ignore
      */
-    async _writeArgs(communicator, buffer) {
+    async _writeArgs(communicator: BinaryCommunicator, buffer: MessageBuffer) {
         const argsLength = this._args ? this._args.length : 0;
         buffer.writeInteger(argsLength);
         if (argsLength > 0) {
@@ -254,7 +279,7 @@ class SqlQuery extends Query {
     /**
      * @ignore
      */
-    async _getCursor(communicator, payload, keyType = null, valueType = null) {
+    async _getCursor(communicator, payload, keyType = null, valueType = null): Promise<BaseCursor<CacheEntry>> {
         const cursor = new Cursor(communicator, BinaryUtils.OPERATION.QUERY_SQL_CURSOR_GET_PAGE, payload, keyType, valueType);
         cursor._readId(payload);
         return cursor;
@@ -270,18 +295,32 @@ class SqlQuery extends Query {
  * @property SELECT 1
  * @property UPDATE 2
  */
-const STATEMENT_TYPE = Object.freeze({
-    ANY : 0,
-    SELECT : 1,
-    UPDATE : 2
-});
+export enum STATEMENT_TYPE {
+    ANY = 0,
+    SELECT = 1,
+    UPDATE = 2
+}
 
 
 /**
  * Class representing an SQL Fields query.
  * @extends SqlQuery
  */
-class SqlFieldsQuery extends SqlQuery {
+export class SqlFieldsQuery extends SqlQuery {
+    
+    private _schema: string;
+    
+    private _maxRows: number;
+
+    private _statementType: STATEMENT_TYPE;
+
+    private _enforceJoinOrder: boolean;
+
+    private _collocated: boolean;
+
+    private _lazy: boolean;
+
+    private _includeFieldNames: boolean;
 
     /**
      * Public constructor.
@@ -310,12 +349,12 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - new SqlFieldsQuery instance.
      */
-    constructor(sql) {
+    constructor(sql: string) {
         super(null, sql);
-        this._operation = BinaryUtils.OPERATION.QUERY_SQL_FIELDS;
+        this._operation = OPERATION.QUERY_SQL_FIELDS;
         this._schema = null;
         this._maxRows = -1;
-        this._statementType = SqlFieldsQuery.STATEMENT_TYPE.ANY;
+        this._statementType = STATEMENT_TYPE.ANY;
         this._enforceJoinOrder = false;
         this._collocated = false;
         this._lazy = false;
@@ -333,7 +372,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setSchema(schema) {
+    setSchema(schema: string): SqlFieldsQuery {
         this._schema = schema;
         return this;
     }
@@ -345,7 +384,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setMaxRows(maxRows) {
+    setMaxRows(maxRows: number): SqlFieldsQuery {
         this._maxRows = maxRows;
         return this;
     }
@@ -353,11 +392,11 @@ class SqlFieldsQuery extends SqlQuery {
     /**
      * Set statement type.
      *
-     * @param {SqlFieldsQuery.STATEMENT_TYPE} type - statement type.
+     * @param {STATEMENT_TYPE} type - statement type.
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setStatementType(type) {
+    setStatementType(type: STATEMENT_TYPE): SqlFieldsQuery {
         this._statementType = type;
         return this;
     }
@@ -369,7 +408,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setEnforceJoinOrder(enforceJoinOrder) {
+    setEnforceJoinOrder(enforceJoinOrder: boolean): SqlFieldsQuery {
         this._enforceJoinOrder = enforceJoinOrder;
         return this;
     }
@@ -381,7 +420,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setCollocated(collocated) {
+    setCollocated(collocated: boolean): SqlFieldsQuery {
         this._collocated = collocated;
         return this;
     }
@@ -393,7 +432,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setLazy(lazy) {
+    setLazy(lazy: boolean): SqlFieldsQuery {
         this._lazy = lazy;
         return this;
     }
@@ -405,7 +444,7 @@ class SqlFieldsQuery extends SqlQuery {
      *
      * @return {SqlFieldsQuery} - the same instance of the SqlFieldsQuery.
      */
-    setIncludeFieldNames(includeFieldNames) {
+    setIncludeFieldNames(includeFieldNames: boolean): SqlFieldsQuery {
         this._includeFieldNames = includeFieldNames;
         return this;
     }
@@ -435,7 +474,8 @@ class SqlFieldsQuery extends SqlQuery {
     /**
      * @ignore
      */
-    async _getCursor(communicator, payload, keyType = null, valueType = null) {
+    // @ts-ignore
+    async _getCursor(communicator, payload, keyType = null, valueType = null): Promise<BaseCursor<Array<object>>> {
         const cursor = new SqlFieldsCursor(communicator, payload);
         await cursor._readFieldNames(payload, this._includeFieldNames);
         return cursor;
@@ -449,7 +489,9 @@ class SqlFieldsQuery extends SqlQuery {
  * The query returns all entries from the entire cache or from the specified partition.
  * @extends Query
  */
-class ScanQuery extends Query {
+export class ScanQuery extends Query<CacheEntry> {
+
+    private _partitionNumber: number;
 
     /**
      * Public constructor.
@@ -467,7 +509,7 @@ class ScanQuery extends Query {
      * @return {ScanQuery} - new ScanQuery instance.
      */
     constructor() {
-        super(BinaryUtils.OPERATION.QUERY_SCAN);
+        super(OPERATION.QUERY_SCAN);
         this._partitionNumber = -1;
     }
 
@@ -480,7 +522,7 @@ class ScanQuery extends Query {
      *
      * @return {ScanQuery} - the same instance of the ScanQuery.
      */
-    setPartitionNumber(partitionNumber) {
+    setPartitionNumber(partitionNumber: number): ScanQuery {
         this._partitionNumber = partitionNumber;
         return this;
     }
@@ -490,7 +532,7 @@ class ScanQuery extends Query {
     /**
      * @ignore
      */
-    async _write(communicator, buffer) {
+    async _write(communicator: BinaryCommunicator, buffer: MessageBuffer) {
         // filter
         await communicator.writeObject(buffer, null);
         buffer.writeInteger(this._pageSize);
@@ -501,13 +543,9 @@ class ScanQuery extends Query {
     /**
      * @ignore
      */
-    async _getCursor(communicator, payload, keyType = null, valueType = null) {
-        const cursor = new Cursor(communicator, BinaryUtils.OPERATION.QUERY_SCAN_CURSOR_GET_PAGE, payload, keyType, valueType);
+    async _getCursor(communicator: BinaryCommunicator, payload, keyType = null, valueType = null) {
+        const cursor = new Cursor(communicator, OPERATION.QUERY_SCAN_CURSOR_GET_PAGE, payload, keyType, valueType);
         cursor._readId(payload);
         return cursor;
     }
 }
-
-module.exports.SqlQuery = SqlQuery;
-module.exports.SqlFieldsQuery = SqlFieldsQuery;
-module.exports.ScanQuery = ScanQuery;

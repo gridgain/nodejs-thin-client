@@ -295,7 +295,7 @@ class TestingHelper {
 
         while (!await cond()) {
             if (Date.now() - startTime > timeout) {
-                throw 'Failed to achive condition within timeout ' + timeout;
+                throw 'Failed to achieve condition within timeout ' + timeout;
             }
 
             await TestingHelper.sleep(100);
@@ -346,7 +346,7 @@ class TestingHelper {
             throw 'Unexpected log file for node ' + idx;
 
         if (needLogging) {
-            if (logs.length != 1)
+            if (logs.length !== 1)
                 throw 'Unexpected number of log files for node ' + idx + ': ' + logs.length;
 
             TestingHelper._logReaders.set(idx, new LogReader(logs[0]));
@@ -384,16 +384,18 @@ class TestingHelper {
     }
 
     static killNode(proc) {
+        TestingHelper.logDebug('Killing Ignite process: ' + proc.pid);
         if (TestingHelper.isWindows()) {
             child_process.spawnSync('taskkill', ['/F', '/T', '/PID', proc.pid.toString()])
         }
         psTree(proc.pid, function (err, children) {
             children.map((p) => {
+                TestingHelper.logDebug('Killing Ignite process child: ' + p.PID);
                 try {
                     process.kill(p.PID, 'SIGKILL');
                 }
                 catch (_error) {
-                    // No-op.
+                    TestingHelper.logDebug('Can not kill Ignite process child: ' + _error.toString());
                 }
             });
           });
@@ -514,7 +516,7 @@ class TestingHelper {
         });
 
         const started = await TestingHelper.waitForCondition(async () => 
-            TestingHelper.tryConnectClient(idx), 10000);
+            TestingHelper.tryConnectClient(idx), 30000);
 
         if (!started) {
             await TestingHelper.killNodeAndWait(srv);

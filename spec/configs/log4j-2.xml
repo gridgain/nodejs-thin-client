@@ -26,14 +26,14 @@
 
     <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
         <param name="Target" value="System.out"/>
-        <param name="Threshold" value="Debug"/>
+        <param name="Threshold" value="Trace"/>
         <layout class="org.apache.log4j.PatternLayout">
             <param name="ConversionPattern" value="[%d{ISO8601}][%-5p][%t][%c{1}] %m%n"/>
         </layout>
     </appender>
 
     <appender name="FILE" class="org.apache.ignite.logger.log4j.Log4jRollingFileAppender">
-        <param name="Threshold" value="DEBUG"/>
+        <param name="Threshold" value="TRACE"/>
         <param name="File" value="logs/ignite-log-2.txt"/>
         <param name="Append" value="true"/>
         <param name="MaxFileSize" value="10MB"/>
@@ -44,7 +44,7 @@
     </appender>
 
     <category name="org.apache.ignite.internal.processors.odbc.ClientListenerNioListener">
-        <level value="DEBUG"/>
+        <level value="TRACE"/>
     </category>
 
     <!-- Default settings. -->
